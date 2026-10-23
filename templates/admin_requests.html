@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}Emergency requests{% endblock %}{% block sub %}Review requests, or decide one by hand. Use Allocations to decide all pending requests by priority.{% endblock %}
+{% block content %}<div class="actions" style="margin:0 0 12px">{% for s in ['', 'Pending', 'Approved', 'Partially Approved', 'Rejected', 'Fulfilled'] %}<a class="btn small {{ '' if s == status else 'ghost' }}" href="{{ url_for('admin_requests', status=s) }}">{{ s or 'All' }}</a>{% endfor %}</div>
+<div class="card wrap"><table><tr><th>#</th><th>Organization</th><th>Location</th><th>Item</th><th class="num">Requested</th><th class="num">Allocated</th><th>Urgency</th><th>Status</th><th>Decision</th></tr>
+{% for r in rows %}<tr><td>{{ r.id }}</td><td>{{ r.org_name }}</td><td>{{ r.location_name }}<div class="muted small-text">{{ r.people_affected }} people</div></td><td>{{ r.resource_name }}</td>
+<td class="num">{{ r.quantity }}</td><td class="num">{{ r.allocated_qty }}</td><td>{{ pill(r.urgency) }}</td><td>{{ pill(r.status) }}</td>
+<td>{% if r.status == 'Pending' %}<form method="post" action="{{ url_for('decide', rid=r.id) }}" class="row" style="gap:6px"><input name="qty" type="number" min="0" max="{{ [r.quantity, avail[r.resource_id]]|min }}" value="{{ [r.quantity, avail[r.resource_id]]|min }}" style="width:80px" aria-label="Quantity to allocate">
+<input name="note" placeholder="Reason (if less)" style="min-width:140px"><button class="small">Save</button></form>{% else %}<span class="muted small-text">{{ r.decision_note }}</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="9" class="muted">No requests match this filter.</td></tr>{% endfor %}</table></div>{% endblock %}

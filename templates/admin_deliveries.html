@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}Deliveries{% endblock %}{% block sub %}Dispatch allocated supplies. Stock leaves the depot when a delivery goes in transit.{% endblock %}
+{% block content %}<div class="card wrap"><table><tr><th>#</th><th>Date</th><th>Relief center</th><th>Location</th><th>Item</th><th class="num">Qty</th><th>Status</th><th>Feedback</th><th></th></tr>
+{% for d in rows %}<tr><td>{{ d.id }}</td><td>{{ d.created_at[:10] }}</td><td>{{ d.org_name }}</td><td>{{ d.location_name }}</td><td>{{ d.resource_name }}</td><td class="num">{{ d.quantity }}</td><td>{{ pill(d.status) }}</td>
+<td>{% if d.issue %}<span class="neg">Issue: {{ d.issue }}</span>{% elif d.confirmed %}Receipt confirmed{% else %}<span class="muted">—</span>{% endif %}</td>
+<td>{% if d.status != 'Delivered' %}<form method="post" action="{{ url_for('advance_delivery', did=d.id) }}"><button class="small">{{ 'Dispatch' if d.status == 'Assigned' else 'Mark delivered' }}</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="9" class="muted">No deliveries yet. Apply an allocation plan to create them.</td></tr>{% endfor %}</table></div>{% endblock %}

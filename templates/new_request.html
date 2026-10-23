@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block heading %}Submit emergency request{% endblock %}{% block sub %}Request resources for your affected location.{% endblock %}
+{% block content %}<form method="post" class="card" style="max-width:640px">
+<div class="row"><div><label>Location</label><select name="location_id">{% for l in locs %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select></div>
+<div><label>Resource type</label><select name="resource_id">{% for r in resources %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div></div>
+<div class="row"><div><label>Quantity</label><input name="quantity" type="number" min="1" required></div><div><label>People affected</label><input name="people_affected" type="number" min="1" required></div></div>
+<label>Urgency level</label><select name="urgency"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select>
+<label>Description (optional)</label><textarea name="description" rows="3" placeholder="Add any additional notes"></textarea>
+<div class="actions"><a class="btn ghost" href="{{ url_for('my_requests') }}">Cancel</a><button>Submit request</button></div></form>{% endblock %}

@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}ReliefGrid{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">{% block head %}{% endblock %}</head><body>
+{% block body %}
+<div class="app">
+<aside class="side"><div class="brand">ReliefGrid</div>
+<nav>{% for label, ep in nav %}<a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep }}">{{ label }}{% if ep == 'notifications' and unread %}<b class="badge">{{ unread }}</b>{% endif %}</a>{% endfor %}</nav>
+<a href="{{ url_for('logout') }}">Log out</a></aside>
+<main class="main"><header class="top"><div><h1>{% block heading %}{% endblock %}</h1><p>{% block sub %}{% endblock %}</p></div>
+<div class="who">{{ session.name }}<small>{{ 'Admin' if session.role == 'admin' else 'Relief center user' }}</small></div></header>
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for c, m in msgs %}<div class="flash {{ c }}" role="status">{{ m }}</div>{% endfor %}{% endwith %}
+{% block content %}{% endblock %}</main></div>
+{% endblock %}
+</body></html>

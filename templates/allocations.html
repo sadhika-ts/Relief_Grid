@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% from "_macros.html" import pill, stat %}
+{% block heading %}Allocation results{% endblock %}{% block sub %}Recommended distribution of available stock for all pending requests, by priority.{% endblock %}
+{% block content %}
+<div class="grid g4" style="margin-bottom:16px">{{ stat("Pending requests", totals.requests, "blue") }}{{ stat("Allocated / requested", totals.allocated ~ " / " ~ totals.requested, "green") }}{{ stat("Unmet demand", totals.unmet, "red") }}</div>
+<div class="card wrap"><h2>Resource allocation plan</h2><table><tr><th>Rank</th><th>Location</th><th>Resource</th><th class="num">Requested</th><th class="num">Allocated</th><th class="num">Unmet</th><th>Urgency</th><th class="num">Score</th></tr>
+{% for p in plan %}<tr title="{{ p.reason }}"><td>#{{ p.rank }}</td><td>{{ p.location_name }}</td><td>{{ p.resource_name }}</td><td class="num">{{ p.quantity }}</td><td class="num"><strong>{{ p.allocated }}</strong></td>
+<td class="num {{ 'neg' if p.unmet }}">{{ p.unmet }}</td><td>{{ pill(p.urgency) }}</td><td class="num">{{ p.score }}</td></tr>
+<tr><td></td><td colspan="7" class="muted small-text">{{ p.reason }}</td></tr>
+{% else %}<tr><td colspan="8" class="muted">No pending requests. New requests from relief centers will appear here.</td></tr>{% endfor %}</table></div>
+<div class="card note"><strong>Why this allocation?</strong><p class="small-text">Each request gets a priority score: 45% urgency, 30% location severity, 25% people affected. Within each resource, the highest scores are served first until stock runs out, so total allocation never exceeds available stock.</p>
+{% if plan %}<form method="post" class="actions"><button>Apply this plan</button></form>{% endif %}</div>{% endblock %}

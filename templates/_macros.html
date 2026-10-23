@@ -1,0 +1,2 @@
+{% macro pill(text) %}<span class="pill {{ text|lower|replace(' ','-') }}">{{ text }}</span>{% endmacro %}
+{% macro stat(label, value, tone) %}<div class="stat {{ tone }}"><span>{{ label }}</span><strong>{{ value }}</strong></div>{% endmacro %}

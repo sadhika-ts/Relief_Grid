@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% from "_macros.html" import pill, stat %}
+{% block heading %}Welcome, {{ session.name }}{% endblock %}{% block sub %}An overview of your current situation and resource status.{% endblock %}
+{% block content %}<div class="grid g4" style="margin-bottom:16px">{{ stat("Units allocated to you", stats.allocated, "blue") }}{{ stat("Deliveries on the way", stats.pending_deliveries, "purple") }}{{ stat("Requests awaiting review", stats.active, "orange") }}{{ stat("Deliveries completed", stats.completed, "green") }}</div>
+<div class="grid g2"><div class="card wrap"><h2>Your recent requests</h2><table><tr><th>Date</th><th>Resource</th><th class="num">Qty</th><th>Status</th></tr>
+{% for r in recent %}<tr><td>{{ r.created_at[:10] }}</td><td>{{ r.resource_name }}</td><td class="num">{{ r.quantity }}</td><td>{{ pill(r.status) }}</td></tr>{% else %}<tr><td colspan="4" class="muted">You haven't requested anything yet.</td></tr>{% endfor %}</table></div>
+<div class="card"><h2>Quick actions</h2><div class="grid"><a class="btn" href="{{ url_for('new_request') }}">Submit new request</a><a class="btn ghost" href="{{ url_for('my_allocations') }}">View allocations</a>
+<a class="btn ghost" href="{{ url_for('my_deliveries') }}">Track deliveries</a><a class="btn ghost" href="{{ url_for('user_resources') }}">View resources</a></div></div></div>{% endblock %}

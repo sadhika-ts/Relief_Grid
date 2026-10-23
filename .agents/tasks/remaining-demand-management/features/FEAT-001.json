@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add database schema fields to support remaining demand tracking: total_allocated, total_dispatched, total_received columns in requests table, update status progression to include 'Partially Fulfilled', and modify finalize_request() to handle partial allocations correctly",
+  "status": "pending",
+  "steps": [
+    "1. Update SCHEMA in db.py to add three new INTEGER columns to requests table: total_allocated (tracks sum of all allocations over time), total_dispatched (tracks sum of dispatched deliveries), total_received (tracks sum of confirmed deliveries). All default to 0. Position them after allocated_qty column.",
+    "2. Add computed remaining_demand logic at query time using max(0, quantity - total_received) in SQL queries. Do NOT add as a stored column - calculate it in SELECT statements where needed.",
+    "3. Update status progression: keep existing statuses (Pending, Approved, Partially Approved, Rejected, Fulfilled) and ensure 'Partially Fulfilled' is a valid status for requests that received some deliveries but have remaining demand.",
+    "4. Modify finalize_request() in app.py to update total_allocated when creating a delivery (add the allocated qty to existing total_allocated). Keep allocated_qty as-is for backwards compatibility (stores the most recent allocation amount).",
+    "5. Update the advance_delivery() function in app.py: when delivery status becomes 'Delivered', increment total_received by delivery quantity and update request status to 'Partially Fulfilled' if remaining demand > 0, or 'Fulfilled' if remaining demand = 0.",
+    "6. Test by deleting reliefgrid.db, running python app.py, logging in as admin, and verifying schema with: sqlite3 reliefgrid.db '.schema requests' - confirm new columns exist."
+  ],
+  "acceptance_criteria": [
+    "requests table has total_allocated, total_dispatched, total_received columns (all INTEGER DEFAULT 0)",
+    "finalize_request() increments total_allocated when creating deliveries",
+    "advance_delivery() updates total_received and sets status to 'Partially Fulfilled' or 'Fulfilled' based on remaining demand",
+    "Demo seed data loads successfully without errors",
+    "Existing allocation and delivery flows work without breaking"
+  ],
+  "verification": [
+    "Delete reliefgrid.db, run python app.py, and verify it starts without errors",
+    "Use sqlite3 reliefgrid.db '.schema requests' to confirm new columns exist",
+    "Login as admin (admin@reliefgrid.org/admin123), navigate to /admin/allocations, apply an allocation, advance a delivery to 'Delivered', and verify the request shows appropriate status"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

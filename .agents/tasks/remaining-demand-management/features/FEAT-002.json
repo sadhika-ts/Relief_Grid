@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Enhance allocation algorithm to include 'Partially Fulfilled' requests alongside 'Pending' requests in allocation runs, allocating against remaining demand (quantity - total_received) rather than original quantity, while preserving the existing priority scoring (45% urgency + 30% severity + 25% people affected)",
+  "status": "pending",
+  "steps": [
+    "1. Update pending_requests() helper in app.py to include requests with status IN ('Pending', 'Partially Fulfilled') instead of only 'Pending'. Sort by id to maintain consistent ordering.",
+    "2. Modify the query in pending_requests() to compute remaining_demand = quantity - total_received for each request, and include it in the returned dict.",
+    "3. Update allocations route in app.py to pass remaining_demand (not quantity) to the allocate() function. The request dict passed to allocate() should have quantity field set to remaining_demand for partially fulfilled requests.",
+    "4. Update finalize_request() logic: when a 'Partially Fulfilled' request receives another allocation, add the new allocation to total_allocated (already done in FEAT-001), create a new delivery, and keep status as 'Partially Fulfilled' until remaining demand reaches 0.",
+    "5. Update allocations.html template to show both 'Requested' (original quantity) and 'Remaining' columns when displaying partially fulfilled requests. Add a pill to indicate which requests are being reallocated.",
+    "6. Test reallocation flow: apply initial allocation that partially fulfills a request, receive new stock via /admin/inventory, run allocation again, and verify the partially fulfilled request appears in the plan with its remaining demand."
+  ],
+  "acceptance_criteria": [
+    "pending_requests() returns both 'Pending' and 'Partially Fulfilled' requests",
+    "Allocation algorithm allocates against remaining demand (quantity - total_received), not original quantity",
+    "Priority scoring remains unchanged: 45% urgency + 30% severity + 25% people affected",
+    "A request can receive multiple allocations over time without losing track of what's already been allocated",
+    "allocations.html template clearly shows which requests are being reallocated and their remaining demand"
+  ],
+  "verification": [
+    "Delete reliefgrid.db and run python app.py",
+    "Login as admin, navigate to /admin/allocations, apply allocation (some requests will be partially fulfilled due to limited stock)",
+    "Add new stock via /admin/inventory (receive 100 units of Drinking Water)",
+    "Navigate back to /admin/allocations and verify partially fulfilled requests appear in the plan with their remaining demand amount",
+    "Apply the reallocation and verify deliveries are created correctly"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

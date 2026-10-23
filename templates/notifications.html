@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block heading %}Notifications{% endblock %}{% block sub %}Stay updated with the latest alerts and status changes.{% endblock %}
+{% block content %}<div class="card">{% for n in rows %}<div style="padding:10px 0;border-bottom:1px solid var(--line)"><strong>{{ n.message }}</strong>
+<div class="muted small-text">{{ n.created_at }}</div></div>{% else %}<p class="muted">No notifications yet. Status changes will show up here.</p>{% endfor %}</div>{% endblock %}

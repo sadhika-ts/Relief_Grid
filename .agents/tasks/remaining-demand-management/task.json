@@ -1,0 +1,7 @@
+{
+  "task_id": "task-remaining-demand-management",
+  "task_description": "Build a Remaining Demand Management System that tracks partial fulfillment, reallocates when new stock arrives, supports multiple deliveries per request, and provides dashboards for outstanding demand visibility",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

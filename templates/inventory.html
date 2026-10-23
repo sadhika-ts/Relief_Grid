@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}Resource inventory{% endblock %}{% block sub %}Manage available supplies and stock levels.{% endblock %}
+{% block content %}<div class="card wrap"><table><tr><th>Resource</th><th>Unit</th><th class="num">In depot</th><th class="num">Available</th><th>Level</th><th>Updated</th><th>Update stock</th></tr>
+{% for r in resources %}<tr><td><strong>{{ r.name }}</strong></td><td>{{ r.unit }}</td><td class="num">{{ r.quantity }}</td><td class="num">{{ avail[r.id] }}</td>
+<td>{% if r.quantity <= r.low_threshold %}<span class="pill lowstock">Low stock</span>{% else %}{{ pill('OK') }}{% endif %}</td><td>{{ r.updated_at[:10] }}</td>
+<td><form method="post" class="row" style="gap:6px"><input type="hidden" name="resource_id" value="{{ r.id }}"><input name="amount" type="number" min="0" placeholder="Qty" aria-label="Quantity" required>
+<button name="action" value="receive" class="small">Receive</button><button name="action" value="set" class="small ghost">Set</button></form></td></tr>{% endfor %}</table>
+<p class="muted small-text" style="margin-top:8px">Available = in depot minus units reserved for deliveries that haven't been dispatched yet.</p></div>
+<div class="card"><h2>Add a resource</h2><form method="post" class="row" style="align-items:flex-end"><input type="hidden" name="action" value="add">
+<div><label>Name</label><input name="name" required></div><div><label>Unit</label><input name="unit" placeholder="Boxes" required></div>
+<div><label>Quantity</label><input name="amount" type="number" min="0" value="0" required></div><div><label>Low-stock level</label><input name="low_threshold" type="number" min="0" value="0"></div>
+<div><button>Add resource</button></div></form></div>{% endblock %}

@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Add multi-delivery tracking (associate multiple deliveries with one request over time), implement reallocation button on inventory page that triggers allocation including outstanding demand, and update delivery confirmation to properly increment total_received and update request status",
+  "status": "pending",
+  "steps": [
+    "1. Verify deliveries table already supports multiple deliveries per request_id (it does based on schema exploration - no changes needed). Each delivery record links to a request via request_id.",
+    "2. Update advance_delivery() route in app.py: when advancing to 'Delivered' status, increment total_received on the request by the delivery quantity, then check remaining demand and set status to 'Partially Fulfilled' if remaining > 0 or 'Fulfilled' if remaining = 0. This was partially done in FEAT-001, ensure it's complete.",
+    "3. Update delivery_feedback() route in app.py: when relief user confirms receipt (confirmed=1), also increment total_received if not already done, and update request status appropriately.",
+    "4. Add a 'Reallocate Outstanding Demand' button to inventory.html that links to /admin/allocations with a flash message explaining that both new pending requests and outstanding demand from partially fulfilled requests will be included.",
+    "5. Update allocations.html template to clearly distinguish between new requests (status='Pending') and reallocations (status='Partially Fulfilled'). Use visual indicators like a blue 'NEW' pill for pending and orange 'REALLOCATION' pill for partially fulfilled.",
+    "6. Update admin_deliveries.html and my_deliveries.html templates to show which delivery number this is for the request (1st delivery, 2nd delivery, etc). Query deliveries grouped by request_id with a row number or count.",
+    "7. Add a note/card in allocations.html explaining the reallocation workflow: 'This allocation includes both new requests and outstanding demand from partially fulfilled requests. Each request is prioritized by the same scoring system regardless of whether it's new or a reallocation.'",
+    "8. Test the complete multi-delivery workflow: submit request → partial allocation → dispatch/deliver → receive new stock → reallocate → dispatch/deliver second batch → verify request shows 'Fulfilled' when remaining demand reaches 0."
+  ],
+  "acceptance_criteria": [
+    "A single request can have multiple delivery records over time",
+    "Each delivery (when marked 'Delivered') increments total_received on its parent request",
+    "Request status automatically updates from 'Partially Fulfilled' to 'Fulfilled' when remaining demand reaches 0",
+    "Inventory page has 'Reallocate Outstanding Demand' button that links to allocations",
+    "Allocations page visually distinguishes new requests from reallocations",
+    "Delivery pages show which delivery number this is (1st, 2nd, etc.) for multi-delivery requests"
+  ],
+  "verification": [
+    "Delete reliefgrid.db, run python app.py, login as admin",
+    "Submit a request for 100 units (or use seed data), apply allocation when only 60 units available",
+    "Navigate to /admin/deliveries, advance the delivery to 'In Transit' then 'Delivered'",
+    "Verify request status changes to 'Partially Fulfilled' and total_received = 60",
+    "Add 50 more units via /admin/inventory",
+    "Click 'Reallocate Outstanding Demand' button from inventory page",
+    "Verify allocation plan shows the partially fulfilled request with remaining demand of 40 units",
+    "Apply allocation, advance the second delivery to 'Delivered'",
+    "Verify request status changes to 'Fulfilled' and total_received = 100",
+    "Check deliveries page and confirm both deliveries are visible and numbered/distinguishable"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

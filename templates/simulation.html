@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block heading %}Disaster simulation{% endblock %}{% block sub %}Test how the allocation changes under different scenarios. Nothing is saved.{% endblock %}
+{% block content %}{% set f = result.form if result else {} %}
+<div class="grid g2" style="grid-template-columns:1fr 2fr"><form method="post" class="card"><h2>Scenario settings</h2>
+<label>Change in demand</label><select name="demand_pct">{% for v, t in [(100,'No change'),(125,'Increase by 25%'),(150,'Increase by 50%'),(200,'Double'),(75,'Decrease by 25%')] %}<option value="{{ v }}" {{ 'selected' if f.get('demand_pct') == v|string }}>{{ t }}</option>{% endfor %}</select>
+<label>Reduce available stock</label><div class="row"><select name="cut_resource"><option value="">None</option>{% for r in resources %}<option value="{{ r.id }}" {{ 'selected' if f.get('cut_resource') == r.id|string }}>{{ r.name }}</option>{% endfor %}</select>
+<select name="cut_pct">{% for v in [0,25,50,75] %}<option value="{{ v }}" {{ 'selected' if f.get('cut_pct') == v|string }}>{{ v }}%</option>{% endfor %}</select></div>
+<label>Block a route</label><select name="blocked"><option value="">None</option>{% for l in locs %}<option value="{{ l.id }}" {{ 'selected' if f.get('blocked') == l.id|string }}>{{ l.name }}</option>{% endfor %}</select>
+<div class="actions"><button>Run simulation</button></div></form>
+<div class="card wrap"><h2>Simulation results</h2>{% if not result %}<p class="muted">Choose a scenario and run it to compare against the current plan.</p>
+{% elif result.empty %}<p class="muted">There are no pending requests to simulate. Submit a request first.</p>
+{% else %}<table><tr><th>Resource</th><th class="num">Original plan</th><th class="num">After simulation</th><th class="num">Change</th><th class="num">Unmet</th></tr>
+{% for r in result.rows %}<tr><td>{{ r.name }}</td><td class="num">{{ r.before }}</td><td class="num">{{ r.after }}</td><td class="num {{ 'neg' if r.change < 0 }}">{{ '%+d'|format(r.change) }}</td><td class="num">{{ r.unmet }}</td></tr>{% endfor %}</table>
+<div class="note" style="margin-top:12px">Total allocation changes by <strong>{{ '%+d'|format(result.delta) }}</strong> units under this scenario.</div>{% endif %}</div></div>{% endblock %}

@@ -1,0 +1,25 @@
+{
+  "project_type": "Flask web application with SQLite database, plain HTML/CSS/JS frontend",
+  "language": "Python 3",
+  "build_system": "No build step required - Python Flask runs directly",
+  "test_framework": "No test framework currently in project",
+  "build_command": "python app.py",
+  "test_command": "Manual testing via http://127.0.0.1:5000 with demo logins: admin@reliefgrid.org/admin123 (admin) and riverside@ngo.org/relief123 (relief center user)",
+  "verification_instructions": "1. Delete reliefgrid.db to reset. 2. Run python app.py. 3. Login as admin and relief users. 4. Test allocation flow: submit requests, run allocation, check deliveries. 5. Verify database schema changes with sqlite3 reliefgrid.db '.schema requests'",
+  "snapshot_or_generated_files": "reliefgrid.db is generated on first run from db.py schema and seed data. Should be deleted for clean testing.",
+  "environment_constraints": "SQLite only, Flask only. No external services. SECRET_KEY should be set in environment for production but defaults to 'dev-only-change-me' for local demos.",
+  "contribution_requirements": "No CONTRIBUTING.md or AGENTS.md found. Follow existing code style: 2-space indent in templates, 4-space in Python. Keep UI consistent with existing style.css classes.",
+  "key_patterns": "Routes grouped by module in app.py. Helper functions defined before routes. Template inheritance from base.html. Macros in _macros.html for pills and stats. Status progression through db updates with notifications to users. Stock calculations use available_stock() which subtracts reserved deliveries. Priority scoring: 45% urgency + 30% severity + 25% people affected.",
+  "relevant_files": [
+    "db.py - schema definition, init_db(), seed() - ADD new fields to requests table here",
+    "app.py - all Flask routes, finalize_request() updates request status, available_stock() calculates unreserved stock",
+    "allocation.py - allocate() function takes requests list and stock dict, returns results with allocated/unmet quantities",
+    "templates/admin_dashboard.html - main admin overview with stats cards and map",
+    "templates/admin_requests.html - request table with filters by status, inline decision forms",
+    "templates/allocations.html - allocation preview/apply with score explanation",
+    "templates/my_requests.html - relief user view of their requests",
+    "templates/inventory.html - stock management, receive/set actions",
+    "static/style.css - all styling, pill colors, card layouts, responsive grid"
+  ],
+  "directory_structure": "Root: app.py (routes), db.py (schema), allocation.py (algorithm), requirements.txt. Subdirs: templates/ (Jinja2 HTML), static/ (style.css). Database: reliefgrid.db (generated, should be in .gitignore)"
+}

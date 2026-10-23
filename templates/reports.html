@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block heading %}Reports{% endblock %}{% block sub %}Requests, supplies distributed, and unmet demand.{% endblock %}
+{% block content %}<div class="grid g2" style="grid-template-columns:2fr 1fr"><div class="card wrap"><h2>Supply by resource</h2>
+<table><tr><th>Resource</th><th class="num">Requested</th><th class="num">Allocated</th><th class="num">Delivered</th><th class="num">Unmet</th><th>Fulfilment</th><th class="num">Pending</th></tr>
+{% for r in by_res %}<tr><td>{{ r.name }}</td><td class="num">{{ r.requested }}</td><td class="num">{{ r.allocated }}</td><td class="num">{{ delivered.get(r.id, 0) }}</td><td class="num">{{ r.requested - r.allocated }}</td>
+<td><div class="bar" title="{{ r.allocated }} of {{ r.requested }}"><i style="width:{{ (100 * r.allocated / r.requested)|round if r.requested else 0 }}%"></i></div></td><td class="num">{{ r.pending }}</td></tr>{% endfor %}</table></div>
+<div class="card"><h2>Requests by status</h2><table>{% for s in statuses %}<tr><td>{{ s.status }}</td><td class="num">{{ s.c }}</td></tr>{% else %}<tr><td class="muted">No requests yet.</td></tr>{% endfor %}</table></div></div>{% endblock %}

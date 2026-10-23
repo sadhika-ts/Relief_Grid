@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}Delivery tracking{% endblock %}{% block sub %}Track the status of your assigned deliveries.{% endblock %}
+{% block content %}<div class="card wrap"><table><tr><th>Date</th><th>Resource</th><th class="num">Qty</th><th>Location</th><th>Status</th><th>Receipt</th></tr>
+{% for d in rows %}<tr><td>{{ d.created_at[:10] }}</td><td>{{ d.resource_name }}</td><td class="num">{{ d.quantity }} {{ d.unit }}</td><td>{{ d.location_name }}</td><td>{{ pill(d.status) }}</td>
+<td>{% if d.status == 'Assigned' %}<span class="muted small-text">Not dispatched yet</span>
+{% else %}{% if d.issue %}<span class="neg small-text">Reported: {{ d.issue }}</span>{% elif d.confirmed %}<span class="small-text">Receipt confirmed</span>{% endif %}
+{% if not d.confirmed %}<details><summary>Confirm or report</summary><form method="post" action="{{ url_for('delivery_feedback', did=d.id, action='confirm') }}" style="margin:6px 0"><button class="small">Confirm receipt</button></form>
+<form method="post" action="{{ url_for('delivery_feedback', did=d.id, action='report') }}"><input name="issue" placeholder="What went wrong?" aria-label="Describe the problem" required><button class="small ghost" style="margin-top:4px">Report problem</button></form></details>{% endif %}{% endif %}</td></tr>
+{% else %}<tr><td colspan="6" class="muted">No deliveries yet. They appear once your requests are allocated.</td></tr>{% endfor %}</table></div>{% endblock %}

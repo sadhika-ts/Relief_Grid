@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block heading %}Profile{% endblock %}{% block sub %}Your organization and sign-in details.{% endblock %}
+{% block content %}<form method="post" class="card" style="max-width:480px">
+<label>Organization name</label><input name="org_name" value="{{ user.org_name or '' }}">
+<label>Your name</label><input name="name" value="{{ user.name }}" required>
+<label>Email</label><input value="{{ user.email }}" disabled>
+<label>New password (leave blank to keep current)</label><input name="password" type="password" minlength="6">
+<div class="actions"><button>Save profile</button></div></form>{% endblock %}

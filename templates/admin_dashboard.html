@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% from "_macros.html" import pill, stat %}
+{% block head %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">{% endblock %}
+{% block heading %}Admin dashboard{% endblock %}{% block sub %}Overview of the current situation and resource status.{% endblock %}
+{% block content %}
+<div class="grid g4" style="margin-bottom:16px">
+{{ stat("Total affected people", "{:,}".format(stats.affected), "red") }}{{ stat("Resources available", stats.available, "blue") }}
+{{ stat("Pending requests", stats.pending, "orange") }}{{ stat("Critical shortages", stats.shortages, "purple") }}{{ stat("Deliveries in progress", stats.deliveries, "green") }}</div>
+<div class="grid g2"><div class="card"><h2>Affected areas</h2><div id="map" role="img" aria-label="Map of affected locations"></div>
+<p class="muted small-text" style="margin-top:6px">Marker colour shows severity: red critical, orange high, blue medium, grey low.</p></div>
+<div class="card"><h2>Recent emergency requests</h2><div class="wrap"><table><tr><th>Location</th><th>Item</th><th class="num">Qty</th><th>Urgency</th></tr>
+{% for r in recent %}<tr><td>{{ r.location_name }}</td><td>{{ r.resource_name }}</td><td class="num">{{ r.quantity }}</td><td>{{ pill(r.urgency) }}</td></tr>
+{% else %}<tr><td colspan="4" class="muted">No requests yet.</td></tr>{% endfor %}</table></div>
+<div class="actions"><a class="btn small" href="{{ url_for('allocations') }}">Run allocation</a><a class="btn small ghost" href="{{ url_for('admin_requests') }}">View all</a></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const locs = {{ locs|tojson }}, colors = {Critical:'#d93a3a',High:'#e8891c',Medium:'#1f6feb',Low:'#8a97ab'};
+const map = L.map('map').setView([9.6, 76.38], 10);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
+locs.filter(l => l.lat && l.lng).forEach(l => L.circleMarker([l.lat, l.lng], {radius: 9, color:'#fff', weight:2, fillColor: colors[l.severity], fillOpacity: .95})
+  .addTo(map).bindPopup(`<b>${l.name}</b><br>${l.severity} · ${l.people_affected} people<br>${l.status}`));
+</script>{% endblock %}

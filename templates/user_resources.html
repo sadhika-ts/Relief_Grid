@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}Resources{% endblock %}{% block sub %}Supplies currently available at the depot.{% endblock %}
+{% block content %}<div class="card wrap"><table><tr><th>Resource</th><th>Unit</th><th class="num">Available</th><th>Level</th></tr>
+{% for r in resources %}<tr><td>{{ r.name }}</td><td>{{ r.unit }}</td><td class="num">{{ avail[r.id] }}</td><td>{% if avail[r.id] <= r.low_threshold %}<span class="pill lowstock">Low stock</span>{% else %}{{ pill('OK') }}{% endif %}</td></tr>{% endfor %}</table></div>{% endblock %}

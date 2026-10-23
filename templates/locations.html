@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}Disaster locations{% endblock %}{% block sub %}Record disasters and the areas they affect.{% endblock %}
+{% block content %}
+<div class="grid g2" style="grid-template-columns:1fr 2fr">
+<div><div class="card"><h2>Record a disaster</h2><form method="post"><input type="hidden" name="action" value="disaster">
+<label>Name</label><input name="name" required><label>Type</label><select name="type"><option>Flood</option><option>Cyclone</option><option>Earthquake</option><option>Landslide</option><option>Fire</option></select>
+<div class="actions"><button>Save disaster</button></div></form></div>
+<div class="card"><h2>Add a location</h2><form method="post"><input type="hidden" name="action" value="location">
+<label>Disaster</label><select name="disaster_id">{% for d in disasters %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
+<label>Name</label><input name="name" required>
+<div class="row"><div><label>Type</label><select name="type"><option>Village</option><option>Shelter</option><option>Relief Camp</option><option>Depot</option></select></div>
+<div><label>Severity</label><select name="severity"><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></div></div>
+<div class="row"><div><label>People affected</label><input name="people_affected" type="number" min="0" value="0" required></div>
+<div><label>Status</label><select name="status"><option>Active</option><option>Stabilizing</option><option>Road Blocked</option><option>Resolved</option></select></div></div>
+<div class="row"><div><label>Latitude</label><input name="lat" type="number" step="any"></div><div><label>Longitude</label><input name="lng" type="number" step="any"></div></div>
+<div class="actions"><button>Add location</button></div></form></div></div>
+<div class="card wrap"><h2>All locations</h2><table><tr><th>Location</th><th>Disaster</th><th>Severity</th><th>People</th><th>Status</th><th></th></tr>
+{% for l in locs %}<tr><td><strong>{{ l.name }}</strong><div class="muted small-text">{{ l.type }}</div></td><td>{{ l.disaster or '—' }}</td>
+<td><select name="severity" form="f{{ l.id }}">{% for s in ['Low','Medium','High','Critical'] %}<option {{ 'selected' if s == l.severity }}>{{ s }}</option>{% endfor %}</select></td>
+<td><input name="people_affected" type="number" min="0" value="{{ l.people_affected }}" form="f{{ l.id }}" style="width:90px"></td>
+<td><select name="status" form="f{{ l.id }}">{% for s in ['Active','Stabilizing','Road Blocked','Resolved'] %}<option {{ 'selected' if s == l.status }}>{{ s }}</option>{% endfor %}</select></td>
+<td><form id="f{{ l.id }}" method="post" action="{{ url_for('update_location', lid=l.id) }}"><button class="small">Save</button></form></td></tr>{% endfor %}</table></div></div>{% endblock %}
