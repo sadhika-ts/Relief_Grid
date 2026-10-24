@@ -16,6 +16,16 @@
 const locs = {{ locs|tojson }}, colors = {Critical:'#d93a3a',High:'#e8891c',Medium:'#1f6feb',Low:'#8a97ab'};
 const map = L.map('map').setView([9.6, 76.38], 10);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
-locs.filter(l => l.lat && l.lng).forEach(l => L.circleMarker([l.lat, l.lng], {radius: 9, color:'#fff', weight:2, fillColor: colors[l.severity], fillOpacity: .95})
-  .addTo(map).bindPopup(`<b>${l.name}</b><br>${l.severity} · ${l.people_affected} people<br>${l.status}`));
+locs.filter(l => l.lat && l.lng).forEach(l => {
+  L.circleMarker([l.lat, l.lng], {radius: 9, color:'#fff', weight:2, fillColor: colors[l.severity], fillOpacity: .95})
+    .addTo(map).bindPopup(`<b>${l.name}</b><br>${l.severity} · ${l.people_affected} people<br>${l.status}`);
+  L.marker([l.lat, l.lng], {
+    icon: L.divIcon({
+      className: 'location-label',
+      html: `<div style="font-size:11px;font-weight:600;color:#24292f;background:rgba(255,255,255,0.9);padding:2px 6px;border-radius:3px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.2);border:1px solid rgba(0,0,0,0.1)">${l.name}</div>`,
+      iconSize: null,
+      iconAnchor: [-8, -15]
+    })
+  }).addTo(map);
+});
 </script>{% endblock %}
