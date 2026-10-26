@@ -1,15 +1,30 @@
 import functools
 import os
 import sqlite3
+from datetime import datetime, timedelta
 
 from flask import (Flask, flash, redirect, render_template, request, session, url_for)
+from flask_mail import Mail, Message
 from werkzeug.security import check_password_hash, generate_password_hash
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 
 import db as database
 from allocation import allocate, priority_score
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
+
+# Email configuration
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "True") == "True"
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")  # Your email
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")  # Your app password
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@reliefgrid.org")
+
+mail = Mail(app)
+serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
 app.teardown_appcontext(database.close_db)
 database.init_db()
 
@@ -85,6 +100,34 @@ def parse_int(name, minimum=0):
     return value if value >= minimum else None
 
 
+def validate_password(password):
+    """Validates password strength. Returns (is_valid, error_message)."""
+    if not password:
+        return False, "Password cannot be empty."
+    
+    errors = []
+    
+    if len(password) < 8:
+        errors.append("at least 8 characters")
+    
+    if not any(c.isupper() for c in password):
+        errors.append("at least one uppercase letter (A-Z)")
+    
+    if not any(c.islower() for c in password):
+        errors.append("at least one lowercase letter (a-z)")
+    
+    if not any(c.isdigit() for c in password):
+        errors.append("at least one number (0-9)")
+    
+    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
+        errors.append("at least one special character (!@#$%^&*)")
+    
+    if errors:
+        return False, "Password must contain: " + ", ".join(errors) + "."
+    
+    return True, ""
+
+
 @app.context_processor
 def inject_nav():
     if "user_id" not in session:
@@ -120,18 +163,35 @@ def login():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        f = {k: request.form.get(k, "").strip() for k in ("name", "org_name", "email", "password")}
-        if not all(f.values()) or len(f["password"]) < 6:
-            flash("Fill in every field. Passwords need at least 6 characters.", "error")
-        else:
-            try:
-                db().execute("INSERT INTO users(name,org_name,email,password_hash,role) VALUES (?,?,?,?, 'relief')",
-                             (f["name"], f["org_name"], f["email"].lower(), generate_password_hash(f["password"])))
-                db().commit()
-                flash("Account created. Log in to continue.", "success")
-                return redirect(url_for("login"))
-            except sqlite3.IntegrityError:
-                flash("An account with that email already exists.", "error")
+        f = {k: request.form.get(k, "").strip() for k in ("name", "org_name", "email")}
+        password = request.form.get("password", "")  # Don't strip password
+        
+        # Validate all fields are filled
+        if not all([f["name"], f["org_name"], f["email"], password]):
+            flash("All fields are required. Please fill in every field.", "error")
+            return render_template("register.html")
+        
+        # Validate email format
+        if "@" not in f["email"] or "." not in f["email"].split("@")[-1]:
+            flash("Please enter a valid email address.", "error")
+            return render_template("register.html")
+        
+        # Validate password strength
+        is_valid, error_msg = validate_password(password)
+        if not is_valid:
+            flash(error_msg, "error")
+            return render_template("register.html")
+        
+        # If all validations pass, create account
+        try:
+            db().execute("INSERT INTO users(name,org_name,email,password_hash,role) VALUES (?,?,?,?, 'relief')",
+                         (f["name"], f["org_name"], f["email"].lower(), generate_password_hash(password)))
+            db().commit()
+            flash("Account created successfully! Please log in.", "success")
+            return redirect(url_for("login"))
+        except sqlite3.IntegrityError:
+            flash("An account with that email already exists.", "error")
+    
     return render_template("register.html")
 
 
@@ -141,21 +201,116 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        
+        if not email:
+            flash("Please enter your email address.", "error")
+            return render_template("forgot_password.html")
+        
+        # Check if user exists
+        user = q("SELECT * FROM users WHERE email=?", email, one=True)
+        
+        if user:
+            # Generate password reset token (expires in 1 hour)
+            token = serializer.dumps(email, salt="password-reset-salt")
+            
+            # Create reset link
+            reset_url = url_for("reset_password", token=token, _external=True)
+            
+            # Send email
+            try:
+                msg = Message(
+                    subject="Reset Your ReliefGrid Password",
+                    recipients=[email],
+                    html=render_template("email/password_reset.html", 
+                                       user=user, 
+                                       reset_url=reset_url)
+                )
+                
+                # Try to send email
+                if app.config.get("MAIL_USERNAME"):
+                    mail.send(msg)
+                    flash("Password reset instructions have been sent to your email.", "success")
+                else:
+                    # Development mode - show reset link
+                    flash(f"Email not configured. Reset link: {reset_url}", "warning")
+                    
+            except Exception as e:
+                # If email fails, show link in development
+                flash(f"Could not send email. Reset link: {reset_url}", "warning")
+        else:
+            # Don't reveal if email exists (security best practice)
+            flash("If that email exists, password reset instructions have been sent.", "success")
+        
+        return redirect(url_for("login"))
+    
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        # Verify token (expires after 1 hour)
+        email = serializer.loads(token, salt="password-reset-salt", max_age=3600)
+    except SignatureExpired:
+        flash("The password reset link has expired. Please request a new one.", "error")
+        return redirect(url_for("forgot_password"))
+    except BadSignature:
+        flash("Invalid password reset link.", "error")
+        return redirect(url_for("forgot_password"))
+    
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        
+        # Check passwords match
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return render_template("reset_password.html", token=token)
+        
+        # Validate password strength
+        is_valid, error_msg = validate_password(password)
+        if not is_valid:
+            flash(error_msg, "error")
+            return render_template("reset_password.html", token=token)
+        
+        # Update password
+        db().execute(
+            "UPDATE users SET password_hash=? WHERE email=?",
+            (generate_password_hash(password), email)
+        )
+        db().commit()
+        
+        flash("Your password has been reset successfully! Please log in.", "success")
+        return redirect(url_for("login"))
+    
+    return render_template("reset_password.html", token=token)
+
+
 @app.route("/profile", methods=["GET", "POST"])
 @login_required()
 def profile():
     user = q("SELECT * FROM users WHERE id=?", session["user_id"], one=True)
     if request.method == "POST":
-        org, name, pw = (request.form.get(k, "").strip() for k in ("org_name", "name", "password"))
+        org, name = request.form.get("org_name", "").strip(), request.form.get("name", "").strip()
+        pw = request.form.get("password", "")  # Don't strip password
+        
         if not name:
             flash("Name can't be empty.", "error")
         else:
             db().execute("UPDATE users SET name=?, org_name=? WHERE id=?", (name, org, user["id"]))
+            
+            # If password is provided, validate and update
             if pw:
-                if len(pw) < 6:
-                    flash("Passwords need at least 6 characters.", "error")
+                is_valid, error_msg = validate_password(pw)
+                if not is_valid:
+                    flash(error_msg, "error")
                     return redirect(url_for("profile"))
                 db().execute("UPDATE users SET password_hash=? WHERE id=?", (generate_password_hash(pw), user["id"]))
+            
             db().commit()
             session["name"] = org or name
             flash("Profile saved.", "success")

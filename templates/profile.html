@@ -1,7 +1,114 @@
 {% extends "base.html" %}{% block heading %}Profile{% endblock %}{% block sub %}Your organization and sign-in details.{% endblock %}
-{% block content %}<form method="post" class="card" style="max-width:480px">
-<label>Organization name</label><input name="org_name" value="{{ user.org_name or '' }}">
-<label>Your name</label><input name="name" value="{{ user.name }}" required>
-<label>Email</label><input value="{{ user.email }}" disabled>
-<label>New password (leave blank to keep current)</label><input name="password" type="password" minlength="6">
-<div class="actions"><button>Save profile</button></div></form>{% endblock %}
+{% block content %}<form method="post" class="card" style="max-width:520px" id="profileForm">
+<label>Organization name</label>
+<input name="org_name" value="{{ user.org_name or '' }}" placeholder="Your organization name">
+
+<label>Your name</label>
+<input name="name" value="{{ user.name }}" required placeholder="Your full name">
+
+<label>Email</label>
+<input value="{{ user.email }}" disabled style="background: #f8fafc; cursor: not-allowed;">
+
+<label>New password (leave blank to keep current)</label>
+<input name="password" type="password" id="password" minlength="8" placeholder="Enter new password or leave blank">
+
+<div id="passwordRequirements" style="display: none; margin-top: 8px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px;">
+    <p style="font-weight: 600; margin-bottom: 8px; color: #64748b;">Password must contain:</p>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div id="req-length" class="requirement">
+            <span class="req-icon">○</span> At least 8 characters
+        </div>
+        <div id="req-upper" class="requirement">
+            <span class="req-icon">○</span> One uppercase letter (A-Z)
+        </div>
+        <div id="req-lower" class="requirement">
+            <span class="req-icon">○</span> One lowercase letter (a-z)
+        </div>
+        <div id="req-digit" class="requirement">
+            <span class="req-icon">○</span> One number (0-9)
+        </div>
+        <div id="req-special" class="requirement">
+            <span class="req-icon">○</span> One special character (!@#$%^&*)
+        </div>
+    </div>
+</div>
+
+<div class="actions"><button type="submit">Save profile</button></div>
+</form>
+
+<style>
+.requirement {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+}
+.requirement.met {
+    color: #16a34a;
+    font-weight: 500;
+}
+.req-icon {
+    font-size: 16px;
+    font-weight: bold;
+}
+.requirement.met .req-icon::before {
+    content: '✓';
+    color: #16a34a;
+}
+</style>
+
+<script>
+const passwordInput = document.getElementById('password');
+const passwordRequirements = document.getElementById('passwordRequirements');
+const requirements = {
+    length: { element: document.getElementById('req-length'), test: (p) => p.length >= 8 },
+    upper: { element: document.getElementById('req-upper'), test: (p) => /[A-Z]/.test(p) },
+    lower: { element: document.getElementById('req-lower'), test: (p) => /[a-z]/.test(p) },
+    digit: { element: document.getElementById('req-digit'), test: (p) => /[0-9]/.test(p) },
+    special: { element: document.getElementById('req-special'), test: (p) => /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(p) }
+};
+
+// Show requirements when user starts typing password
+passwordInput.addEventListener('focus', function() {
+    if (this.value.length > 0) {
+        passwordRequirements.style.display = 'block';
+    }
+});
+
+passwordInput.addEventListener('input', function() {
+    const password = this.value;
+    
+    // Show/hide requirements based on whether password field has content
+    if (password.length > 0) {
+        passwordRequirements.style.display = 'block';
+        
+        // Check each requirement
+        Object.values(requirements).forEach(req => {
+            if (req.test(password)) {
+                req.element.classList.add('met');
+            } else {
+                req.element.classList.remove('met');
+            }
+        });
+    } else {
+        passwordRequirements.style.display = 'none';
+    }
+});
+
+// Validate on submit (only if password is being changed)
+document.getElementById('profileForm').addEventListener('submit', function(e) {
+    const password = passwordInput.value;
+    
+    // If password field is not empty, validate it
+    if (password.length > 0) {
+        const allMet = Object.values(requirements).every(req => req.test(password));
+        
+        if (!allMet) {
+            e.preventDefault();
+            alert('Please ensure your password meets all requirements, or leave the field blank to keep your current password.');
+        }
+    }
+});
+</script>
+{% endblock %}
