@@ -11,6 +11,25 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('admin','relief'))
 );
+CREATE TABLE IF NOT EXISTS ngo_registrations (
+    id INTEGER PRIMARY KEY,
+    ngo_id TEXT UNIQUE NOT NULL,
+    org_name TEXT NOT NULL,
+    official_reg_number TEXT NOT NULL UNIQUE,
+    registration_type TEXT NOT NULL CHECK (registration_type IN ('Trust','Society','Section 8 Company','Foundation','Other')),
+    email TEXT NOT NULL UNIQUE,
+    contact_number TEXT NOT NULL,
+    address TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    certificate_filename TEXT,
+    email_verified INTEGER DEFAULT 0,
+    verification_token TEXT,
+    status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+    rejection_reason TEXT,
+    applied_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TEXT,
+    reviewed_by INTEGER REFERENCES users(id)
+);
 CREATE TABLE IF NOT EXISTS disasters (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'Active', created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -69,6 +88,15 @@ def close_db(_=None):
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
+    
+    # Migration: add ngo_registration_id column to users table if it doesn't exist
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN ngo_registration_id INTEGER")
+        conn.commit()
+    except sqlite3.OperationalError:
+        # Column already exists, safe to continue
+        pass
+    
     if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
         seed(conn)
     conn.commit()
