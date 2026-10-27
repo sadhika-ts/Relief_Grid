@@ -67,6 +67,33 @@ def login_required(role=None):
     return deco
 
 
+def get_ngo_status(user_id):
+    """Get NGO approval status for a user. Returns status or None if not an NGO user."""
+    user = q("SELECT ngo_registration_id FROM users WHERE id=?", user_id, one=True)
+    if not user or not user["ngo_registration_id"]:
+        return None
+    ngo = q("SELECT status FROM ngo_registrations WHERE id=?", user["ngo_registration_id"], one=True)
+    return ngo["status"] if ngo else None
+
+
+def ngo_approved_required():
+    """Decorator to ensure NGO users are approved before accessing relief routes."""
+    def deco(f):
+        @functools.wraps(f)
+        def wrapper(*a, **kw):
+            if session.get("role") == "relief":
+                user = q("SELECT ngo_registration_id FROM users WHERE id=?", session["user_id"], one=True)
+                # If user has ngo_registration_id, check approval status
+                if user and user["ngo_registration_id"]:
+                    ngo = q("SELECT status FROM ngo_registrations WHERE id=?", user["ngo_registration_id"], one=True)
+                    if not ngo or ngo["status"] != "APPROVED":
+                        flash("Your NGO application must be approved before accessing this page.", "error")
+                        return redirect(url_for("home_redirect"))
+            return f(*a, **kw)
+        return wrapper
+    return deco
+
+
 def available_stock():
     """Stock minus units already reserved by deliveries that haven't been dispatched."""
     rows = q("""SELECT r.id, r.quantity - COALESCE((SELECT SUM(d.quantity) FROM deliveries d
@@ -167,6 +194,18 @@ def login():
         role = request.form.get("role", "relief")
         user = q("SELECT * FROM users WHERE email=?", email, one=True)
         if user and user["role"] == role and check_password_hash(user["password_hash"], request.form.get("password", "")):
+            # Check NGO approval status before allowing login
+            if user["ngo_registration_id"]:
+                ngo = q("SELECT status, rejection_reason FROM ngo_registrations WHERE id=?", user["ngo_registration_id"], one=True)
+                if ngo:
+                    if ngo["status"] == "PENDING":
+                        flash("Your NGO application is pending admin approval. You will be notified when approved.", "warning")
+                        return redirect(url_for("login"))
+                    elif ngo["status"] == "REJECTED":
+                        flash(f"Your NGO application was rejected. Reason: {ngo['rejection_reason']}. Please contact support.", "error")
+                        return redirect(url_for("login"))
+                    # If APPROVED, continue with login
+            
             session.clear()
             session.update(user_id=user["id"], role=user["role"], name=user["org_name"] or user["name"])
             return redirect(url_for("home_redirect"))
@@ -532,9 +571,9 @@ def simulation():
         for res in resources:
             b = sum(p["allocated"] for p in base if p["resource_id"] == res["id"])
             s = sum(p["allocated"] for p in scen if p["resource_id"] == res["id"])
-            if b or s:
-                rows.append({"name": res["name"], "before": b, "after": s, "change": s - b,
-                             "unmet": sum(p["unmet"] for p in scen if p["resource_id"] == res["id"])})
+            # Show all resources, not just those with allocations
+            rows.append({"name": res["name"], "before": b, "after": s, "change": s - b,
+                         "unmet": sum(p["unmet"] for p in scen if p["resource_id"] == res["id"])})
         result = {"rows": rows, "delta": sum(r["change"] for r in rows), "empty": not reqs, "form": request.form}
     return render_template("simulation.html", resources=resources, locs=locs, result=result)
 
@@ -568,6 +607,7 @@ def notifications():
 # ---------- relief center user ----------
 @app.route("/home")
 @login_required("relief")
+@ngo_approved_required()
 def user_home():
     uid = session["user_id"]
     stats = {
@@ -582,6 +622,7 @@ def user_home():
 
 @app.route("/my/requests")
 @login_required("relief")
+@ngo_approved_required()
 def my_requests():
     return render_template("my_requests.html", title="My Requests", sub="Track every request you've submitted.",
                            rows=q(REQ_SQL + " WHERE q.user_id=? ORDER BY q.id DESC", session["user_id"]))
@@ -589,6 +630,7 @@ def my_requests():
 
 @app.route("/my/allocations")
 @login_required("relief")
+@ngo_approved_required()
 def my_allocations():
     return render_template("my_requests.html", title="Allocations", sub="What was allocated to your requests, and why.",
                            rows=q(REQ_SQL + " WHERE q.user_id=? AND q.status!='Pending' ORDER BY q.id DESC", session["user_id"]))
@@ -596,6 +638,7 @@ def my_allocations():
 
 @app.route("/my/requests/new", methods=["GET", "POST"])
 @login_required("relief")
+@ngo_approved_required()
 def new_request():
     if request.method == "POST":
         qty, people = parse_int("quantity", 1), parse_int("people_affected", 1)
@@ -615,6 +658,7 @@ def new_request():
 
 @app.route("/my/deliveries")
 @login_required("relief")
+@ngo_approved_required()
 def my_deliveries():
     rows = q("""SELECT d.*, rs.name AS resource_name, rs.unit, l.name AS location_name FROM deliveries d
                 JOIN requests q ON q.id=d.request_id JOIN resources rs ON rs.id=q.resource_id
@@ -647,6 +691,7 @@ def delivery_feedback(did, action):
 
 @app.route("/my/resources")
 @login_required("relief")
+@ngo_approved_required()
 def user_resources():
     avail = available_stock()
     return render_template("user_resources.html", resources=q("SELECT * FROM resources ORDER BY name"), avail=avail)
@@ -808,7 +853,14 @@ def ngo_application_status():
     if not ngo:
         return render_template("ngo_application_status.html", ngo=None, email=email)
     
-    return render_template("ngo_application_status.html", ngo=dict(ngo), email=email)
+    # Check if user is logged in and this is their application
+    is_logged_in = False
+    if "user_id" in session:
+        user = q("SELECT ngo_registration_id FROM users WHERE id=?", session["user_id"], one=True)
+        if user and user["ngo_registration_id"] == ngo["id"]:
+            is_logged_in = True
+    
+    return render_template("ngo_application_status.html", ngo=dict(ngo), email=email, is_logged_in=is_logged_in)
 
 
 @app.route("/uploads/certificates/<filename>")
