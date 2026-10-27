@@ -1,0 +1,44 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Login validation and access control: enforce NGO approval status at login, block pending/rejected NGOs from accessing dashboard, apply ngo_approved_required to relief routes. Depends on FEAT-003 (admin approval workflow).",
+  "status": "pending",
+  "steps": [
+    "1. Modify /login route in app.py. After successful password verification and before setting session, check if user.ngo_registration_id is not NULL. If not NULL: query ngo_registrations for that id, check status. If PENDING: flash 'Your NGO application is pending admin approval. You will be notified when approved.' with severity 'warning', do not set session, redirect to login. If REJECTED: flash 'Your NGO application was rejected. Reason: {rejection_reason}. Please contact support.' with severity 'error', redirect to login. If APPROVED: proceed to set session and login normally. If NULL (legacy relief users): proceed normally.",
+    "2. Add ngo_approved_required() decorator function in app.py after login_required(). Logic: @functools.wraps wrapper that checks if session['role'] == 'relief' AND user has ngo_registration_id, then verifies status == APPROVED in ngo_registrations table. If not approved: flash error, redirect to home_redirect(). This decorator ensures relief routes check both login AND approval status.",
+    "3. Apply @ngo_approved_required() decorator to all relief-only routes that should require approval: /home (user_home), /my/requests, /my/allocations, /my/requests/new, /my/deliveries, /my/resources. Add it after @login_required('relief'). Pattern: @app.route('/home')\\n@login_required('relief')\\n@ngo_approved_required()\\ndef user_home():",
+    "4. Keep /profile and /logout routes accessible to all authenticated users (do NOT add ngo_approved_required), so pending NGOs can still update profile or logout.",
+    "5. Test backward compatibility: existing relief users without ngo_registration_id should bypass NGO checks entirely. Pattern: in ngo_approved_required, check if user has ngo_registration_id first - if NULL, allow access (they're legacy users). Only check approval status if ngo_registration_id is not NULL.",
+    "6. Update /ngo/application-status route to detect if user is logged in and their application is pending/rejected, show personalized message: 'You are logged in but cannot access the dashboard until your application is approved.' vs 'Your application is under review.'",
+    "7. Add helper function get_ngo_status(user_id) in app.py that queries ngo_registrations by user.ngo_registration_id and returns status or None. Use this in ngo_approved_required and login route to avoid duplicate queries."
+  ],
+  "acceptance_criteria": [
+    "NGOs with PENDING status cannot login, see appropriate message",
+    "NGOs with REJECTED status cannot login, see rejection reason",
+    "NGOs with APPROVED status login successfully to relief dashboard",
+    "Legacy relief users without ngo_registration_id login normally (backward compatible)",
+    "All relief routes protected by ngo_approved_required check approval status",
+    "Profile and logout remain accessible to pending NGOs if they somehow get session",
+    "Login page shows clear feedback for pending/rejected NGO applications",
+    "Application status page reflects logged-in user's state if applicable"
+  ],
+  "verification": [
+    "Create NGO registration (FEAT-002), do NOT approve it (status=PENDING)",
+    "Try to login with NGO email and password at /login with role=relief",
+    "Verify login blocked with message 'Your NGO application is pending admin approval'",
+    "Verify session not created, user redirected back to login",
+    "Login as admin, reject the NGO with reason 'Missing documents'",
+    "Try to login with rejected NGO credentials",
+    "Verify login blocked with message showing rejection reason",
+    "Login as admin, approve a different NGO (FEAT-003)",
+    "Try to login with approved NGO credentials",
+    "Verify login succeeds, redirects to relief user dashboard (/home)",
+    "Verify all relief routes accessible: /my/requests, /my/requests/new, /my/allocations, /my/deliveries, /my/resources",
+    "Test backward compatibility: login as riverside@ngo.org/relief123 (legacy user with ngo_registration_id=NULL)",
+    "Verify login succeeds, all relief routes accessible",
+    "Check database to confirm riverside user has ngo_registration_id=NULL: sqlite3 reliefgrid.db 'SELECT ngo_registration_id FROM users WHERE email=\"riverside@ngo.org\"'",
+    "Verify no errors in console during any of these login tests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

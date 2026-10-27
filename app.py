@@ -13,6 +13,8 @@ from allocation import allocate, priority_score
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB file upload limit
+app.config["UPLOAD_FOLDER"] = "uploads/certificates"
 
 # Email configuration
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
@@ -128,6 +130,17 @@ def validate_password(password):
     return True, ""
 
 
+def generate_ngo_id():
+    """Generate unique NGO ID in format NGO-1001, NGO-1002, etc."""
+    last = q("SELECT ngo_id FROM ngo_registrations ORDER BY id DESC LIMIT 1", one=True)
+    if last and last["ngo_id"]:
+        # Parse NGO-NNNN format
+        num = int(last["ngo_id"].split("-")[1]) + 1
+    else:
+        num = 1001
+    return f"NGO-{num:04d}"
+
+
 @app.context_processor
 def inject_nav():
     if "user_id" not in session:
@@ -220,8 +233,13 @@ def forgot_password():
             # Create reset link
             reset_url = url_for("reset_password", token=token, _external=True)
             
-            # Send email
+            # Send email - REQUIRE email configuration for security
             try:
+                if not app.config.get("MAIL_USERNAME"):
+                    # Email MUST be configured for security reasons
+                    flash("Password reset is currently unavailable. Please contact your administrator.", "error")
+                    return render_template("forgot_password.html")
+                
                 msg = Message(
                     subject="Reset Your ReliefGrid Password",
                     recipients=[email],
@@ -230,20 +248,18 @@ def forgot_password():
                                        reset_url=reset_url)
                 )
                 
-                # Try to send email
-                if app.config.get("MAIL_USERNAME"):
-                    mail.send(msg)
-                    flash("Password reset instructions have been sent to your email.", "success")
-                else:
-                    # Development mode - show reset link
-                    flash(f"Email not configured. Reset link: {reset_url}", "warning")
+                mail.send(msg)
+                flash("Password reset instructions have been sent to your email. Please check your inbox.", "success")
                     
             except Exception as e:
-                # If email fails, show link in development
-                flash(f"Could not send email. Reset link: {reset_url}", "warning")
+                # Log error but don't reveal details to user
+                print(f"Email sending failed: {str(e)}")
+                flash("Unable to send password reset email. Please contact your administrator.", "error")
+                return render_template("forgot_password.html")
         else:
             # Don't reveal if email exists (security best practice)
-            flash("If that email exists, password reset instructions have been sent.", "success")
+            # Show same success message even if email doesn't exist
+            flash("If that email exists, password reset instructions have been sent. Please check your inbox.", "success")
         
         return redirect(url_for("login"))
     
@@ -633,6 +649,176 @@ def delivery_feedback(did, action):
 def user_resources():
     avail = available_stock()
     return render_template("user_resources.html", resources=q("SELECT * FROM resources ORDER BY name"), avail=avail)
+
+
+# ---------- NGO registration and verification ----------
+@app.route("/ngo/register", methods=["GET", "POST"])
+def ngo_register():
+    if request.method == "POST":
+        # Import here to avoid dependency issues
+        from werkzeug.utils import secure_filename
+        import time
+        
+        # Collect form data
+        f = {k: request.form.get(k, "").strip() for k in ("org_name", "official_reg_number", "registration_type", "email", "contact_number", "address")}
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        
+        # Validate all fields present
+        if not all([f["org_name"], f["official_reg_number"], f["registration_type"], f["email"], f["contact_number"], f["address"], password, confirm_password]):
+            flash("All fields are required. Please fill in every field.", "error")
+            return render_template("ngo_register.html")
+        
+        # Validate email format
+        if "@" not in f["email"] or "." not in f["email"].split("@")[-1]:
+            flash("Please enter a valid email address.", "error")
+            return render_template("ngo_register.html")
+        
+        # Validate password strength
+        is_valid, error_msg = validate_password(password)
+        if not is_valid:
+            flash(error_msg, "error")
+            return render_template("ngo_register.html")
+        
+        # Validate password confirmation
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return render_template("ngo_register.html")
+        
+        # Validate certificate upload
+        if "certificate" not in request.files:
+            flash("Please upload your registration certificate.", "error")
+            return render_template("ngo_register.html")
+        
+        cert_file = request.files["certificate"]
+        if cert_file.filename == "":
+            flash("Please upload your registration certificate.", "error")
+            return render_template("ngo_register.html")
+        
+        # Check file extension
+        allowed_extensions = {"pdf", "jpg", "jpeg", "png"}
+        file_ext = cert_file.filename.rsplit(".", 1)[-1].lower() if "." in cert_file.filename else ""
+        if file_ext not in allowed_extensions:
+            flash("Certificate must be a PDF, JPG, JPEG, or PNG file.", "error")
+            return render_template("ngo_register.html")
+        
+        # Check file size (already limited by MAX_CONTENT_LENGTH, but double-check)
+        cert_file.seek(0, 2)  # Seek to end
+        file_size = cert_file.tell()
+        cert_file.seek(0)  # Reset to beginning
+        if file_size > 5 * 1024 * 1024:
+            flash("Certificate file must be smaller than 5MB.", "error")
+            return render_template("ngo_register.html")
+        
+        # All validation passed - process registration
+        try:
+            # Generate NGO ID
+            ngo_id = generate_ngo_id()
+            
+            # Save certificate with secure filename
+            timestamp = int(time.time())
+            secure_name = secure_filename(cert_file.filename)
+            certificate_filename = f"{ngo_id}_{timestamp}_{secure_name}"
+            cert_path = os.path.join(app.config["UPLOAD_FOLDER"], certificate_filename)
+            cert_file.save(cert_path)
+            
+            # Hash password
+            password_hash = generate_password_hash(password)
+            
+            # Generate email verification token
+            verification_token = serializer.dumps(f["email"], salt="ngo-email-verify")
+            
+            # Insert into database
+            db().execute("""INSERT INTO ngo_registrations 
+                           (ngo_id, org_name, official_reg_number, registration_type, email, contact_number, 
+                            address, password_hash, certificate_filename, verification_token, status, email_verified)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0)""",
+                        (ngo_id, f["org_name"], f["official_reg_number"], f["registration_type"], 
+                         f["email"].lower(), f["contact_number"], f["address"], password_hash, 
+                         certificate_filename, verification_token))
+            db().commit()
+            
+            # Send verification email
+            verification_url = url_for("ngo_verify_email", token=verification_token, _external=True)
+            try:
+                if app.config.get("MAIL_USERNAME"):
+                    msg = Message(
+                        subject="Verify Your Email - ReliefGrid NGO Registration",
+                        recipients=[f["email"]],
+                        html=render_template("email/ngo_verification.html",
+                                           org_name=f["org_name"],
+                                           verification_url=verification_url)
+                    )
+                    mail.send(msg)
+            except Exception as e:
+                print(f"Email sending failed: {str(e)}")
+                # Continue even if email fails - user can check status
+            
+            # Store email in session for status page
+            session["ngo_email"] = f["email"]
+            
+            flash("Registration submitted successfully! Please check your email to verify your address.", "success")
+            return redirect(url_for("ngo_application_status"))
+            
+        except sqlite3.IntegrityError as e:
+            # Duplicate email or registration number
+            if "email" in str(e).lower():
+                flash("An NGO with that email address is already registered.", "error")
+            elif "official_reg_number" in str(e).lower():
+                flash("An NGO with that registration number is already registered.", "error")
+            else:
+                flash("Registration failed. Please check your information and try again.", "error")
+            return render_template("ngo_register.html")
+    
+    return render_template("ngo_register.html")
+
+
+@app.route("/ngo/verify-email/<token>")
+def ngo_verify_email(token):
+    try:
+        # Verify token (expires after 24 hours)
+        email = serializer.loads(token, salt="ngo-email-verify", max_age=86400)
+        
+        # Update email_verified flag
+        db().execute("UPDATE ngo_registrations SET email_verified=1 WHERE email=?", (email,))
+        db().commit()
+        
+        flash("Email verified successfully! Your application is now pending admin review.", "success")
+        return render_template("ngo_email_verified.html", email=email)
+        
+    except SignatureExpired:
+        flash("This verification link has expired. Please contact support.", "error")
+        return redirect(url_for("login"))
+    except BadSignature:
+        flash("Invalid verification link.", "error")
+        return redirect(url_for("login"))
+
+
+@app.route("/ngo/application-status")
+def ngo_application_status():
+    email = request.args.get("email") or session.get("ngo_email")
+    
+    if not email:
+        flash("Please provide your email address to check your application status.", "error")
+        return redirect(url_for("login"))
+    
+    ngo = q("SELECT * FROM ngo_registrations WHERE email=?", email.lower(), one=True)
+    
+    if not ngo:
+        return render_template("ngo_application_status.html", ngo=None, email=email)
+    
+    return render_template("ngo_application_status.html", ngo=dict(ngo), email=email)
+
+
+@app.route("/uploads/certificates/<filename>")
+@login_required("admin")
+def serve_certificate(filename):
+    from flask import send_from_directory
+    try:
+        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    except FileNotFoundError:
+        flash("Certificate file not found.", "error")
+        return redirect(url_for("admin_dashboard"))
 
 
 if __name__ == "__main__":

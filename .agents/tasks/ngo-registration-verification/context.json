@@ -1,0 +1,25 @@
+{
+  "project_type": "Flask web application with SQLite database, plain HTML/CSS/JS frontend, email via Flask-Mail",
+  "language": "Python 3",
+  "build_system": "No build step - Flask runs directly with python app.py",
+  "test_framework": "Manual testing via browser at http://127.0.0.1:5000",
+  "build_command": "python app.py",
+  "test_command": "Manual testing: (1) Delete reliefgrid.db to reset; (2) python app.py; (3) Login with admin@reliefgrid.org/admin123 (admin) and riverside@ngo.org/relief123 (relief); (4) Test NGO registration flow, admin approval, and login enforcement",
+  "verification_instructions": "1. Delete reliefgrid.db to start fresh. 2. Run python app.py. 3. Test NGO registration at /ngo/register - fill form, upload certificate. 4. Check email for verification link (or check console if email not configured). 5. Click verification link. 6. Check application status at /ngo/application-status?email=<email>. 7. Login as admin, navigate to NGO Verifications. 8. Review NGO details, view certificate, approve or reject. 9. Test NGO login - PENDING should be blocked, APPROVED should work, REJECTED should show reason. 10. Verify backward compatibility: existing relief users (riverside@ngo.org) without ngo_registration_id still login normally.",
+  "snapshot_or_generated_files": "reliefgrid.db is generated on first run from db.py SCHEMA. Delete for clean testing. uploads/certificates/ directory created at runtime.",
+  "environment_constraints": "SQLite only, Flask only. Flask-Mail already configured for password reset. SECRET_KEY defaults to 'dev-only-change-me' for local. Email via itsdangerous URLSafeTimedSerializer already imported and configured.",
+  "contribution_requirements": "No AGENTS.md or CONTRIBUTING.md. Follow existing patterns: 4-space indent in Python, 2-space in templates. Keep routes grouped by module in app.py. Use q() helper for queries, login_required() decorator for auth. Extend base.html for templates. Reuse style.css classes (card, grid, btn, pill, stat, flash).",
+  "key_patterns": "Routes grouped by module with comments (e.g., # ---------- 1. authentication ----------). Helper functions q(sql, *args, one=False) for queries, login_required(role) decorator. validate_password() returns (is_valid, error_msg). Flask-Mail + URLSafeTimedSerializer for tokens (serializer.dumps/loads with salt and max_age). Template inheritance from base.html, macros in _macros.html. Status pills via pill() macro. Navigation defined in ADMIN_NAV/USER_NAV lists. Flash messages for feedback. Werkzeug for password hashing (generate_password_hash, check_password_hash). File uploads with secure_filename() from werkzeug.utils.",
+  "relevant_files": [
+    "app.py - All routes, helpers (q, login_required, validate_password, notify), Flask-Mail config, serializer setup. Add NGO routes and helpers here.",
+    "db.py - SCHEMA string with CREATE TABLE IF NOT EXISTS statements, init_db(), seed(). Add ngo_registrations table and ALTER users table here.",
+    "templates/base.html - Base layout with sidebar nav, flash messages. ADMIN_NAV list in app.py drives admin sidebar.",
+    "templates/login.html - Login form with admin/relief tabs. Add 'Register as NGO' link below form.",
+    "templates/register.html - Existing relief user registration. Pattern for form layout, password validation, client-side JS.",
+    "templates/email/password_reset.html - Existing email template. Pattern for HTML email design, branding, buttons.",
+    "templates/_macros.html - Reusable macros: pill(text) for status badges, stat(label, value, tone) for dashboard stats.",
+    "static/style.css - All styling. Use existing classes: .auth for split-screen auth pages, .card for content boxes, .grid .g2/.g3/.g4 for layouts, .pill for status badges with color classes (pending, approved, rejected, critical, high, medium, low), .btn/.btn.ghost/.btn.small for buttons, .flash for messages, .stat for dashboard stat cards.",
+    "requirements.txt - Flask, Flask-Mail, itsdangerous already present. No new dependencies needed."
+  ],
+  "directory_structure": "Root: app.py (routes), db.py (schema), allocation.py (algorithm), requirements.txt, reliefgrid.db (generated). Subdirs: templates/ (Jinja2 HTML), templates/email/ (HTML email templates), static/ (style.css), uploads/certificates/ (NGO certificates, created at runtime). No tests/ dir."
+}

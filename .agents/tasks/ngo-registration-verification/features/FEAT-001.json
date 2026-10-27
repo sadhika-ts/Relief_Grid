@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Database schema extension: add ngo_registrations table and ngo_registration_id column to users table. This is the foundation for all other features and must be done first.",
+  "status": "completed",
+  "steps": [
+    "1. Modify db.py SCHEMA string to add ngo_registrations table with: id INTEGER PRIMARY KEY, ngo_id TEXT UNIQUE NOT NULL (format NGO-1001), org_name TEXT NOT NULL, official_reg_number TEXT NOT NULL UNIQUE, registration_type TEXT NOT NULL (Trust/Society/Section 8 Company/Foundation/Other), email TEXT NOT NULL UNIQUE, contact_number TEXT NOT NULL, address TEXT NOT NULL, password_hash TEXT NOT NULL, certificate_filename TEXT, email_verified INTEGER DEFAULT 0, verification_token TEXT, status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING','APPROVED','REJECTED')), rejection_reason TEXT, applied_at TEXT DEFAULT CURRENT_TIMESTAMP, reviewed_at TEXT, reviewed_by INTEGER REFERENCES users(id).",
+    "2. Add migration-safe ALTER TABLE users to add ngo_registration_id INTEGER column. Use a guard pattern: wrap in try/except or check column existence first to handle existing databases. Pattern: db().execute('ALTER TABLE users ADD COLUMN ngo_registration_id INTEGER'); catch sqlite3.OperationalError if column exists.",
+    "3. Test schema by deleting reliefgrid.db and running python app.py. Verify ngo_registrations table exists with: sqlite3 reliefgrid.db '.schema ngo_registrations'. Verify users table has new column with: sqlite3 reliefgrid.db '.schema users'.",
+    "4. Test backward compatibility: with fresh db, login as existing seed users (admin@reliefgrid.org/admin123, riverside@ngo.org/relief123) should work normally with ngo_registration_id=NULL."
+  ],
+  "acceptance_criteria": [
+    "ngo_registrations table exists with all specified columns and constraints",
+    "users table has ngo_registration_id column without breaking existing data",
+    "Existing seed users login successfully after schema change",
+    "Schema migration is safe to run on existing databases (idempotent)"
+  ],
+  "verification": [
+    "Delete reliefgrid.db",
+    "Run python app.py and verify startup succeeds without errors",
+    "Run sqlite3 reliefgrid.db '.schema ngo_registrations' - table exists with all columns",
+    "Run sqlite3 reliefgrid.db '.schema users' - ngo_registration_id column present",
+    "Visit http://127.0.0.1:5000/login and login as admin@reliefgrid.org/admin123 - succeeds",
+    "Visit http://127.0.0.1:5000/login and login as riverside@ngo.org/relief123 - succeeds"
+  ],
+  "blocked_reason": null,
+  "findings": "PASS - All acceptance criteria met:\n- ngo_registrations table created with all required columns (id, ngo_id UNIQUE, org_name, official_reg_number UNIQUE, registration_type with CHECK constraint, email UNIQUE, contact_number, address, password_hash, certificate_filename, email_verified, verification_token, status with DEFAULT PENDING and CHECK constraint, rejection_reason, applied_at with CURRENT_TIMESTAMP, reviewed_at, reviewed_by)\n- users table successfully extended with ngo_registration_id INTEGER column\n- Migration is idempotent - ALTER TABLE wrapped in try/except to handle existing columns\n- Existing seed users (admin@reliefgrid.org, riverside@ngo.org) authenticate successfully with ngo_registration_id=NULL\n- No data loss or corruption\n- Schema can be run multiple times without errors\nCommit: 19e3ef6"
+}

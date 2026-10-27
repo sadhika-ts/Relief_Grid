@@ -1,0 +1,99 @@
+{% extends "base.html" %}{% block title %}Application Status · ReliefGrid{% endblock %}
+{% block body %}{% from "_macros.html" import pill %}
+<div class="auth"><section class="hero"><h1>ReliefGrid</h1><p>NGO Application Status</p></section>
+<section class="panel">
+<h1>Application Status</h1>
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for c, m in msgs %}<div class="flash {{ c }}" style="margin-top:12px">{{ m }}</div>{% endfor %}{% endwith %}
+
+{% if ngo %}
+<div style="margin-top:20px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #e2e8f0">
+<div>
+<h2 style="margin:0">{{ ngo.org_name }}</h2>
+<p class="muted" style="margin:4px 0 0;font-size:13px">{{ ngo.ngo_id }}</p>
+</div>
+{{ pill(ngo.status) }}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+<div>
+<p class="muted" style="margin:0;font-size:13px">Email Address</p>
+<p style="margin:4px 0 0;font-weight:500">{{ ngo.email }}</p>
+</div>
+<div>
+<p class="muted" style="margin:0;font-size:13px">Registration Number</p>
+<p style="margin:4px 0 0;font-weight:500">{{ ngo.official_reg_number }}</p>
+</div>
+<div>
+<p class="muted" style="margin:0;font-size:13px">Registration Type</p>
+<p style="margin:4px 0 0;font-weight:500">{{ ngo.registration_type }}</p>
+</div>
+<div>
+<p class="muted" style="margin:0;font-size:13px">Applied On</p>
+<p style="margin:4px 0 0;font-weight:500">{{ ngo.applied_at.split('.')[0] if '.' in ngo.applied_at else ngo.applied_at }}</p>
+</div>
+</div>
+
+<div style="margin-bottom:24px;padding:16px;background:#f8fafc;border-radius:8px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+<span style="font-weight:600;color:#334155">Email Verification:</span>
+{% if ngo.email_verified %}
+<span style="color:#16a34a;font-weight:500">✓ Verified</span>
+{% else %}
+<span style="color:#ea580c;font-weight:500">⚠ Not Verified</span>
+{% endif %}
+</div>
+{% if not ngo.email_verified %}
+<p class="muted" style="margin:0;font-size:13px">Please check your email and click the verification link.</p>
+{% endif %}
+</div>
+
+{% if ngo.status == 'PENDING' %}
+<div style="padding:16px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;margin-bottom:24px">
+<p style="margin:0;color:#854d0e;font-size:14px;line-height:1.6">
+<strong>⏳ Application Under Review</strong><br>
+Your application is pending admin review. You'll receive an email notification once it's reviewed.
+</p>
+</div>
+{% elif ngo.status == 'APPROVED' %}
+<div style="padding:16px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;margin-bottom:24px">
+<p style="margin:0;color:#14532d;font-size:14px;line-height:1.6">
+<strong>✅ Application Approved</strong><br>
+Your NGO has been verified! You can now log in to access the relief coordination dashboard.
+</p>
+</div>
+{% elif ngo.status == 'REJECTED' %}
+<div style="padding:16px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;margin-bottom:24px">
+<p style="margin:0;color:#7f1d1d;font-size:14px;line-height:1.6">
+<strong>❌ Application Rejected</strong><br>
+{% if ngo.rejection_reason %}
+Reason: {{ ngo.rejection_reason }}
+{% else %}
+Your application was rejected. Please contact support for more information.
+{% endif %}
+</p>
+</div>
+{% endif %}
+</div>
+
+<div class="actions" style="display:flex;gap:12px">
+<a href="{{ url_for('ngo_application_status', email=email) }}" class="btn ghost" style="text-decoration:none">Refresh Status</a>
+{% if ngo.status == 'APPROVED' %}
+<a href="{{ url_for('login') }}" class="btn" style="text-decoration:none">Go to Login</a>
+{% endif %}
+</div>
+
+{% else %}
+<div style="margin-top:20px;text-align:center;padding:40px">
+<div style="font-size:48px;margin-bottom:16px">🔍</div>
+<h2>Application Not Found</h2>
+<p class="muted">No application found for <strong>{{ email }}</strong></p>
+<div class="actions" style="margin-top:24px;display:flex;gap:12px;justify-content:center">
+<a href="{{ url_for('ngo_register') }}" class="btn" style="text-decoration:none">Register Now</a>
+<a href="{{ url_for('login') }}" class="btn ghost" style="text-decoration:none">Back to Login</a>
+</div>
+</div>
+{% endif %}
+
+</section></div>
+{% endblock %}

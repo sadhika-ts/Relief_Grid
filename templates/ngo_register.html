@@ -1,0 +1,163 @@
+{% extends "base.html" %}{% block title %}NGO Registration · ReliefGrid{% endblock %}
+{% block body %}<div class="auth"><section class="hero"><h1>ReliefGrid</h1><p>Register your NGO with official verification</p><p class="muted" style="color:#cfd9ea">Complete verification process to access relief coordination</p></section>
+<section class="panel"><h1>NGO Registration</h1>
+<p class="muted">Register your organization with official documentation for verification.</p>
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for c, m in msgs %}<div class="flash {{ c }}" style="margin-top:12px">{{ m }}</div>{% endfor %}{% endwith %}
+<form method="post" id="ngoRegisterForm" enctype="multipart/form-data">
+<label for="org_name">Organization Name</label>
+<input id="org_name" name="org_name" required placeholder="e.g., Save the Children Foundation">
+
+<label for="official_reg_number">Official Registration Number</label>
+<input id="official_reg_number" name="official_reg_number" required placeholder="e.g., REG-2024-001">
+
+<label for="registration_type">Registration Type</label>
+<select id="registration_type" name="registration_type" required>
+  <option value="">Select registration type</option>
+  <option value="Trust">Trust</option>
+  <option value="Society">Society</option>
+  <option value="Section 8 Company">Section 8 Company</option>
+  <option value="Foundation">Foundation</option>
+  <option value="Other">Other</option>
+</select>
+
+<label for="email">Official Email Address</label>
+<input id="email" name="email" type="email" required placeholder="e.g., contact@ngo.org">
+
+<label for="contact_number">Contact Number</label>
+<input id="contact_number" name="contact_number" type="tel" required placeholder="e.g., +1-234-567-8900">
+
+<label for="address">Registered Address</label>
+<textarea id="address" name="address" required placeholder="Enter your organization's registered address" rows="3"></textarea>
+
+<label for="certificate">Registration Certificate</label>
+<input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png" required>
+<p class="muted" style="font-size:13px;margin-top:4px">Upload your official registration certificate (PDF, JPG, JPEG, or PNG, max 5MB)</p>
+
+<label for="password">Password</label>
+<input id="password" name="password" type="password" minlength="8" required placeholder="Enter a strong password">
+
+<label for="confirm_password">Confirm Password</label>
+<input id="confirm_password" name="confirm_password" type="password" minlength="8" required placeholder="Re-enter your password">
+
+<div id="passwordRequirements" style="margin-top: 8px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px;">
+    <p style="font-weight: 600; margin-bottom: 8px; color: #64748b;">Password must contain:</p>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div id="req-length" class="requirement">
+            <span class="req-icon">○</span> At least 8 characters
+        </div>
+        <div id="req-upper" class="requirement">
+            <span class="req-icon">○</span> One uppercase letter (A-Z)
+        </div>
+        <div id="req-lower" class="requirement">
+            <span class="req-icon">○</span> One lowercase letter (a-z)
+        </div>
+        <div id="req-digit" class="requirement">
+            <span class="req-icon">○</span> One number (0-9)
+        </div>
+        <div id="req-special" class="requirement">
+            <span class="req-icon">○</span> One special character (!@#$%^&*)
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: 16px; padding: 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
+    <p style="font-size: 13px; color: #0369a1; margin: 0;">
+        <strong>📋 Verification Process:</strong> After registration, verify your email, then wait for admin approval.
+    </p>
+</div>
+
+<div class="actions"><button type="submit" style="width:100%">Submit Registration</button></div>
+</form>
+<p class="muted" style="margin-top:16px"><a href="{{ url_for('login') }}">Back to log in</a></p></section></div>
+
+<style>
+.requirement {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+}
+.requirement.met {
+    color: #16a34a;
+    font-weight: 500;
+}
+.req-icon {
+    font-size: 16px;
+    font-weight: bold;
+}
+.requirement.met .req-icon::before {
+    content: '✓';
+    color: #16a34a;
+}
+</style>
+
+<script>
+const passwordInput = document.getElementById('password');
+const confirmPasswordInput = document.getElementById('confirm_password');
+const requirements = {
+    length: { element: document.getElementById('req-length'), test: (p) => p.length >= 8 },
+    upper: { element: document.getElementById('req-upper'), test: (p) => /[A-Z]/.test(p) },
+    lower: { element: document.getElementById('req-lower'), test: (p) => /[a-z]/.test(p) },
+    digit: { element: document.getElementById('req-digit'), test: (p) => /[0-9]/.test(p) },
+    special: { element: document.getElementById('req-special'), test: (p) => /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(p) }
+};
+
+passwordInput.addEventListener('input', function() {
+    const password = this.value;
+    
+    Object.values(requirements).forEach(req => {
+        if (req.test(password)) {
+            req.element.classList.add('met');
+        } else {
+            req.element.classList.remove('met');
+        }
+    });
+});
+
+// Validate on submit
+document.getElementById('ngoRegisterForm').addEventListener('submit', function(e) {
+    const password = passwordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+    const allMet = Object.values(requirements).every(req => req.test(password));
+    
+    if (!allMet) {
+        e.preventDefault();
+        alert('Please ensure your password meets all requirements.');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('Passwords do not match.');
+        return;
+    }
+    
+    // Validate file
+    const fileInput = document.getElementById('certificate');
+    if (fileInput.files.length === 0) {
+        e.preventDefault();
+        alert('Please upload your registration certificate.');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const fileSize = file.size / 1024 / 1024; // Convert to MB
+    const fileName = file.name.toLowerCase();
+    const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+    const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+    
+    if (!hasValidExtension) {
+        e.preventDefault();
+        alert('Certificate must be a PDF, JPG, JPEG, or PNG file.');
+        return;
+    }
+    
+    if (fileSize > 5) {
+        e.preventDefault();
+        alert('Certificate file must be smaller than 5MB.');
+        return;
+    }
+});
+</script>
+{% endblock %}

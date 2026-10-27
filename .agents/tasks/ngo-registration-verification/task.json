@@ -1,0 +1,7 @@
+{
+  "task_id": "task-ngo-registration-verification",
+  "task_description": "Implement complete NGO Registration and Verification System with database schema, file uploads, email verification, admin approval workflow, and login enforcement for the ReliefGrid Flask+SQLite project",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

@@ -1,0 +1,48 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Admin NGO verification dashboard: list view with status filters, detail view with certificate preview, approve/reject actions with email notifications. Depends on FEAT-002 (registration routes and templates).",
+  "status": "pending",
+  "steps": [
+    "1. Add 'NGO Verifications' to ADMIN_NAV list in app.py. Insert after 'Requests' entry: ('NGO Verifications', 'admin_ngo_verifications'). The nav will automatically show in admin sidebar via base.html template.",
+    "2. Add GET /admin/ngo-verifications route with @login_required('admin'). Get optional ?status= filter from query params. Query: SELECT ngo_registrations.*, users.name AS reviewer_name FROM ngo_registrations LEFT JOIN users ON users.id = ngo_registrations.reviewed_by WHERE status=? (if filter) OR all records (if no filter) ORDER BY applied_at DESC. Count pending: SELECT COUNT(*) FROM ngo_registrations WHERE status='PENDING'. Render list template with rows, status filter value, pending_count.",
+    "3. Add GET /admin/ngo-verifications/<int:id> route with @login_required('admin'). Query full NGO record by id. Render detail template with all fields, certificate filename, email_verified status, reviewer name if reviewed.",
+    "4. Add POST /admin/ngo-verifications/<int:id>/approve route with @login_required('admin'). Verify status is PENDING. Update ngo_registrations: SET status='APPROVED', reviewed_at=CURRENT_TIMESTAMP, reviewed_by=session['user_id']. Create user account: INSERT INTO users (name, org_name, email, password_hash, role, ngo_registration_id) VALUES (org_name, org_name, email, password_hash from ngo_registration, 'relief', ngo_registration.id). Send approval email with login instructions. Flash 'NGO approved and account created' success. db().commit(). Redirect to /admin/ngo-verifications?status=PENDING.",
+    "5. Add POST /admin/ngo-verifications/<int:id>/reject route with @login_required('admin'). Get rejection_reason from request.form (required). Verify status is PENDING and reason is not empty. Update: SET status='REJECTED', rejection_reason=?, reviewed_at=CURRENT_TIMESTAMP, reviewed_by=session['user_id']. Send rejection email with reason. Flash 'NGO application rejected'. db().commit(). Redirect back.",
+    "6. Create templates/admin_ngo_verifications.html extending base.html. Show heading 'NGO Verifications', sub 'Review and verify NGO registration applications'. Status filter tabs (All, Pending, Approved, Rejected) with pending count badge on Pending tab. Table with columns: NGO ID, Organization, Registration Number, Email, Applied Date, Email Verified (checkmark/x), Status (pill), Actions (View Details button). Filter tabs use ?status= query param.",
+    "7. Create templates/admin_ngo_verification_detail.html extending base.html. Two-column layout using .grid .g2. Left column: NGO details card with all fields (org_name, official_reg_number, registration_type, email, contact_number, address, ngo_id, applied_at, email_verified badge). Right column: Certificate preview card. If PDF: show download link and embed with <embed src=\"{{ url_for('serve_certificate', filename=ngo.certificate_filename) }}\" type=\"application/pdf\" width=\"100%\" height=\"600px\">. If image: show <img> tag. Below: approval/rejection forms. If status=PENDING: show Approve button (POST form to /approve) and Reject form (textarea for reason + button to /reject). If APPROVED: show 'Approved by {reviewer_name} on {reviewed_at}'. If REJECTED: show 'Rejected by {reviewer_name}: {rejection_reason}'.",
+    "8. Create templates/email/ngo_approved.html following email template pattern. Subject 'Your NGO Registration Approved'. Content: congratulations message, NGO ID, login instructions (email, password from registration), link to login page, welcome to ReliefGrid.",
+    "9. Create templates/email/ngo_rejected.html following email template pattern. Subject 'NGO Registration Update'. Content: respectful rejection message, reason from admin, invitation to contact support, encouragement to reapply after addressing issues.",
+    "10. Update base.html template to show pending count badge on 'NGO Verifications' nav item for admins. Add logic in inject_nav() context processor in app.py to query pending NGO count: SELECT COUNT(*) FROM ngo_registrations WHERE status='PENDING', pass as ngo_pending. In base.html nav loop, check if ep == 'admin_ngo_verifications' and show badge like notifications badge."
+  ],
+  "acceptance_criteria": [
+    "'NGO Verifications' appears in admin sidebar navigation",
+    "Admin NGO verifications list page shows all applications with status filter",
+    "Pending count badge displays on sidebar nav item",
+    "Detail page shows complete NGO info including certificate preview",
+    "Admin can approve NGO: creates user account, sends email, updates status",
+    "Admin can reject NGO with reason: updates status, sends email with reason",
+    "Approval and rejection emails sent with correct content and branding",
+    "Only PENDING applications show approve/reject forms in detail view",
+    "Approved/rejected applications show reviewer name and decision details"
+  ],
+  "verification": [
+    "Login as admin@reliefgrid.org/admin123",
+    "Verify 'NGO Verifications' appears in sidebar with pending badge if any pending",
+    "Click 'NGO Verifications', verify list page loads with filter tabs",
+    "Verify table shows test NGO from FEAT-002 with status=PENDING",
+    "Click 'View Details' on pending NGO",
+    "Verify detail page shows all NGO info and certificate preview (PDF embed or image)",
+    "Click 'Approve' button, verify success flash",
+    "Check database: sqlite3 reliefgrid.db 'SELECT * FROM ngo_registrations WHERE id=1' shows status=APPROVED, reviewed_at, reviewed_by",
+    "Check database: sqlite3 reliefgrid.db 'SELECT * FROM users WHERE ngo_registration_id=1' shows new user account created with role=relief",
+    "Check console or email inbox for approval email",
+    "Submit another NGO registration (FEAT-002 flow)",
+    "View new NGO in admin panel, click Reject, enter reason 'Test rejection', submit",
+    "Verify rejection flash, database shows status=REJECTED with reason",
+    "Check console/email for rejection email with reason",
+    "Verify approved NGO no longer shows approve/reject forms, shows reviewer info"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

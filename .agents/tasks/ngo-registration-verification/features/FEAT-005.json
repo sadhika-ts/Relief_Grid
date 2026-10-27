@@ -1,0 +1,43 @@
+{
+  "id": "FEAT-005",
+  "type": "test",
+  "description": "End-to-end integration testing and documentation: complete workflow testing from registration through approval to dashboard access, verify all edge cases, ensure backward compatibility, document setup instructions. This feature validates the entire system works cohesively.",
+  "status": "pending",
+  "steps": [
+    "1. Test complete happy path workflow: (a) Fresh database (delete reliefgrid.db); (b) Register NGO at /ngo/register with all fields and certificate; (c) Verify email link; (d) Check application status shows PENDING; (e) Login as admin, navigate to NGO Verifications; (f) Approve NGO; (g) Check email for approval notification; (h) Login as approved NGO; (i) Access relief dashboard and submit a request; (j) Verify request appears in admin panel. Document each step with expected outcomes.",
+    "2. Test rejection workflow: (a) Register second NGO; (b) Verify email; (c) Admin rejects with reason 'Incomplete registration certificate'; (d) Check rejection email sent with reason; (e) Try to login as rejected NGO - blocked with reason displayed; (f) Check application status page shows REJECTED with reason.",
+    "3. Test pending NGO behavior: (a) Register third NGO; (b) Verify email; (c) Try to login before admin approval - blocked with pending message; (d) Verify no session created; (e) Check application status shows PENDING with email verified.",
+    "4. Test backward compatibility exhaustively: (a) Fresh database; (b) Login as all seed users (admin@reliefgrid.org, riverside@ngo.org, east@ngo.org, west@ngo.org); (c) Verify all work normally; (d) Check database confirms all seed users have ngo_registration_id=NULL; (e) As seed relief user (riverside@ngo.org), access all relief routes - verify no errors; (f) Admin can allocate requests from seed users normally.",
+    "5. Test edge cases: (a) Duplicate email registration - should fail with clear error; (b) Duplicate official_reg_number - should fail; (c) Invalid file types (try .exe, .txt) - blocked client-side and server-side; (d) File size over 5MB - blocked with clear message; (e) Expired verification token (manual test by setting max_age=1 in loads, wait, click) - shows expired error; (f) Invalid/tampered token - shows invalid error; (g) Approve already-approved NGO - should prevent or handle gracefully; (h) Reject without reason - blocked with validation error.",
+    "6. Test security: (a) Non-admin tries to access /admin/ngo-verifications - denied; (b) Non-admin tries to access /uploads/certificates/<file> - denied; (c) Approved NGO tries to access admin routes - denied; (d) Pending NGO tries to access /my/requests directly via URL - blocked; (e) SQL injection attempts in form fields - parameterized queries prevent; (f) XSS attempts in org_name, rejection_reason - HTML escaped in templates.",
+    "7. Test certificate handling: (a) Upload PDF, verify admin can view inline; (b) Upload JPG, verify displays as image; (c) Upload PNG, verify displays; (d) Verify uploaded files have secure naming (no path traversal characters); (e) Verify uploads/ directory created automatically if missing; (f) Delete certificate file manually, verify app handles missing file gracefully with 404.",
+    "8. Test UI/UX: (a) All status pills display correct colors (pending=yellow, approved=green, rejected=red); (b) Email verified badge shows checkmark or X; (c) Admin sidebar shows 'NGO Verifications' with pending count badge; (d) Flash messages appear for all user actions; (e) Form validation messages clear and helpful; (f) Email templates render correctly in email clients (test with at least one real email if configured); (g) Responsive design works on mobile viewport (test login, register forms).",
+    "9. Test email notifications: (a) Registration sends verification email with correct link; (b) Approval sends email with login credentials and welcome; (c) Rejection sends email with reason; (d) All emails use ReliefGrid branding and styling; (e) Email links are absolute URLs (_external=True) and work from email client; (f) If email not configured, app degrades gracefully (shows token in console or skips email, but app doesn't crash).",
+    "10. Create TESTING.md documentation file in project root with: (a) Complete setup instructions for NGO feature; (b) Step-by-step testing guide for all workflows; (c) Test credentials for different scenarios; (d) Expected outcomes for each test; (e) Troubleshooting section; (f) Database schema reference for ngo_registrations table; (g) Email configuration notes; (h) Security checklist; (i) Known limitations; (j) Screenshots or ASCII diagrams of key workflows."
+  ],
+  "acceptance_criteria": [
+    "Complete happy path works: register → verify → admin approve → login → access dashboard",
+    "Rejection workflow works: register → verify → admin reject → login blocked → reason shown",
+    "Pending NGOs blocked from login with clear message",
+    "All seed users (legacy relief users) work without modification",
+    "Edge cases handled: duplicates rejected, invalid files blocked, expired tokens fail gracefully",
+    "Security checks pass: access control enforced, SQL injection prevented, XSS escaped",
+    "Certificate uploads and viewing work for PDF and image formats",
+    "UI displays correctly: pills, badges, nav, forms, flash messages",
+    "Email notifications sent with correct content and branding",
+    "TESTING.md documentation complete and accurate"
+  ],
+  "verification": [
+    "Follow complete testing workflow documented in TESTING.md",
+    "Run each test case from steps 1-9, verify all pass",
+    "Check console logs for any errors during testing - should be none",
+    "Verify TESTING.md file exists in project root with all required sections",
+    "Clean database: delete reliefgrid.db",
+    "Run full happy path test: python app.py, register NGO, verify, approve, login, submit request - all succeed without errors",
+    "Clean database again, test backward compatibility: python app.py, login as riverside@ngo.org/relief123, access /my/requests/new, submit request - works normally",
+    "Review all feature findings from FEAT-001 through FEAT-004, confirm any issues resolved",
+    "Final verification: clean database, seed users work, NGO registration works, admin approval works, login enforcement works, all routes accessible or blocked appropriately"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

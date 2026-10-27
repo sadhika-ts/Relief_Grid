@@ -1,0 +1,44 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "NGO registration frontend and backend: registration form, certificate upload, email verification, application status page. Depends on FEAT-001 (database schema).",
+  "status": "completed",
+  "steps": [
+    "1. Create uploads/certificates/ directory in project root. Add app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 (5MB limit) and app.config['UPLOAD_FOLDER'] = 'uploads/certificates' in app.py after Flask app initialization.",
+    "2. Add generate_ngo_id() helper in app.py after existing helpers. Logic: query max id from ngo_registrations, parse NGO-NNNN format, increment, return. Start at NGO-1001 if table empty. Pattern: SELECT ngo_id FROM ngo_registrations ORDER BY id DESC LIMIT 1, then parse integer, add 1, format as NGO-{num:04d}.",
+    "3. Add GET/POST /ngo/register route following pattern from /register in app.py. GET renders template. POST validates: all fields present, email format valid (@, . in domain), password strength with validate_password(), confirm_password matches, certificate file uploaded with allowed extension (pdf, jpg, jpeg, png), file size under 5MB. If valid: import secure_filename from werkzeug.utils, generate ngo_id, save file as {ngo_id}_{timestamp}_{secure_filename(original)}, hash password, generate verification token with serializer.dumps(email, salt='ngo-email-verify'), insert into ngo_registrations (status=PENDING, email_verified=0), send verification email, set session['ngo_email']=email for status page, redirect to /ngo/application-status. Flash errors on validation failure.",
+    "4. Add GET /ngo/verify-email/<token> route. Use serializer.loads(token, salt='ngo-email-verify', max_age=86400) to verify (1 day expiry). On success: db().execute('UPDATE ngo_registrations SET email_verified=1 WHERE email=?', email), flash success, render simple success page with link to check status. On failure: flash error (expired or invalid), redirect to login.",
+    "5. Add GET /ngo/application-status route. Get email from request.args.get('email') or session.get('ngo_email'). Query ngo_registrations for that email. Render status page showing: ngo_id, org_name, applied_at, status badge (PENDING/APPROVED/REJECTED), rejection_reason if rejected, email_verified indicator. If not found, show 'Application not found' message.",
+    "6. Create templates/ngo_register.html extending base.html with {% block body %}<div class=\"auth\"> structure (split-screen like login/register). Hero section with ReliefGrid branding. Panel section with form: org_name, official_reg_number, registration_type (dropdown: Trust, Society, Section 8 Company, Foundation, Other), email, contact_number, address, password (with strength indicator like register.html), confirm_password, certificate upload (accept=\".pdf,.jpg,.jpeg,.png\"), terms checkbox. Include client-side validation JS for password match, file type/size. Style with existing .auth, .hero, .panel classes.",
+    "7. Create templates/ngo_application_status.html extending base.html. Show NGO ID, org name, email, applied date, status pill (use pill() macro), email_verified badge, rejection_reason if rejected. Provide 'Check again' button to refresh. Link back to login.",
+    "8. Create templates/email/ngo_verification.html following pattern from email/password_reset.html. Include ReliefGrid branding, 'Verify Your Email' heading, user.org_name greeting, verification_url button, 24-hour expiry notice, security note. Styled with inline CSS for email compatibility.",
+    "9. Modify templates/login.html to add 'Register as NGO' link below the 'Register your organization' link. Pattern: <p class=\"muted\" style=\"margin-top:8px\">NGO? <a href=\"{{ url_for('ngo_register') }}\">Register as NGO with verification</a></p>",
+    "10. Add protected route GET /uploads/certificates/<filename> with @login_required('admin') decorator. Serves files from uploads/certificates/ using send_from_directory(). Returns 404 if file not found. This ensures only admins can view certificates."
+  ],
+  "acceptance_criteria": [
+    "NGO registration form renders at /ngo/register with all fields and certificate upload",
+    "Form validates all inputs including password strength and file type/size",
+    "Successful registration generates unique NGO ID starting at NGO-1001",
+    "Certificate file uploads to uploads/certificates/ with secure naming",
+    "Verification email sent with token link expiring in 24 hours",
+    "Email verification link updates email_verified flag in database",
+    "Application status page shows current status, NGO ID, and rejection reason if applicable",
+    "Certificates only accessible to admin users via protected route",
+    "Login page includes 'Register as NGO' link"
+  ],
+  "verification": [
+    "Visit http://127.0.0.1:5000/login and verify 'Register as NGO' link appears",
+    "Click link, verify /ngo/register form loads with all fields",
+    "Fill form with test data, upload a PDF certificate, submit",
+    "Verify success flash message and redirect to application status page",
+    "Check reliefgrid.db: sqlite3 reliefgrid.db 'SELECT * FROM ngo_registrations' shows new record with status=PENDING, email_verified=0, ngo_id=NGO-1001",
+    "Check uploads/certificates/ directory contains uploaded file with correct naming",
+    "Copy verification token from database or console log, visit /ngo/verify-email/<token>",
+    "Verify email_verified=1 in database after clicking link",
+    "Visit /ngo/application-status?email=<test_email> and verify status displays correctly",
+    "As non-admin user, try to access /uploads/certificates/<filename> - should be denied",
+    "Login as admin, access same URL - should serve file"
+  ],
+  "blocked_reason": null,
+  "findings": "PASS - All acceptance criteria met:\n- NGO registration form renders at /ngo/register with all 8 required fields (org_name, official_reg_number, registration_type dropdown, email, contact_number, address, password with strength indicator, confirm_password) and certificate upload with file type validation\n- Form validates all inputs on both client-side (JavaScript) and server-side (Flask): email format (@, . in domain), password strength (8+ chars, uppercase, lowercase, digit, special char), password confirmation match, file extension (pdf/jpg/jpeg/png), file size (5MB limit)\n- Successful registration generates unique NGO ID in format NGO-1001, NGO-1002, etc. using generate_ngo_id() helper that queries max ID and increments\n- Certificate uploads to uploads/certificates/ with secure naming: {ngo_id}_{timestamp}_{secure_filename(original)}\n- Verification email sent via Flask-Mail with token generated by serializer.dumps(email, salt='ngo-email-verify'), expires in 24 hours\n- Email verification link at /ngo/verify-email/<token> updates email_verified=1 flag using serializer.loads() with 86400s max_age\n- Application status page at /ngo/application-status shows NGO ID, org name, email, applied date, status pill (PENDING/APPROVED/REJECTED), email_verified badge, rejection_reason if rejected. Accessible via query param ?email= or session ngo_email\n- Certificate route /uploads/certificates/<filename> protected with @login_required('admin') decorator, serves files via send_from_directory(), returns 404 if not found\n- Login page modified to include 'Register as NGO with verification' link below regular registration link\n- All 10 implementation steps completed: config (MAX_CONTENT_LENGTH=5MB, UPLOAD_FOLDER), generate_ngo_id() helper, /ngo/register GET/POST route with full validation, /ngo/verify-email/<token> route, /ngo/application-status route, ngo_register.html template with password strength indicator and file upload, ngo_application_status.html with status display, email/ngo_verification.html following password_reset.html pattern, login.html modification, protected certificate serving route\n- Automated tests verify: Flask config, uploads directory exists, database schema correct, NGO ID generation, all routes registered, all templates valid and load, form validation works, application status handles missing/invalid emails, login page has NGO link\n- No errors during template rendering or route registration\n- Password validation reuses existing validate_password() helper\n- Email sending wrapped in try/except to handle missing MAIL_USERNAME gracefully\n- Duplicate email/registration number caught via sqlite3.IntegrityError\n- File upload security: secure_filename(), extension whitelist, size validation, timestamp to prevent collisions\nCommit: pending"
+}

@@ -3,11 +3,11 @@
 {% block content %}
 <div class="grid g2" style="grid-template-columns:1fr 2fr">
 <div><div class="card"><h2>Record a disaster</h2><form method="post"><input type="hidden" name="action" value="disaster">
-<label>Name</label><input name="name" required><label>Type</label><select name="type"><option>Flood</option><option>Cyclone</option><option>Earthquake</option><option>Landslide</option><option>Fire</option></select>
+<label>Diasester Name</label><input name="name" required><label>Type</label><select name="type"><option>Flood</option><option>Cyclone</option><option>Earthquake</option><option>Landslide</option><option>Fire</option></select>
 <div class="actions"><button>Save disaster</button></div></form></div>
 <div class="card"><h2>Add a location</h2><form method="post"><input type="hidden" name="action" value="location">
 <label>Disaster</label><select name="disaster_id">{% for d in disasters %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
-<label>Name</label><input name="name" required>
+<label>Place Name</label><input name="name" required>
 <div class="row"><div><label>Type</label><select name="type"><option>Village</option><option>Shelter</option><option>Relief Camp</option><option>Depot</option></select></div>
 <div><label>Severity</label><select name="severity"><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></div></div>
 <div class="row"><div><label>People affected</label><input name="people_affected" type="number" min="0" value="0" required></div>

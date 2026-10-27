@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Email Verified · ReliefGrid{% endblock %}
+{% block body %}<div class="auth"><section class="hero"><h1>ReliefGrid</h1><p>Email verification successful</p></section>
+<section class="panel" style="text-align:center">
+<div style="font-size:48px;margin-bottom:16px">✅</div>
+<h1>Email Verified!</h1>
+<p class="muted">Your email address has been verified successfully.</p>
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for c, m in msgs %}<div class="flash {{ c }}" style="margin-top:12px">{{ m }}</div>{% endfor %}{% endwith %}
+<div style="margin-top:24px;padding:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;text-align:left">
+<p style="font-size:13px;color:#0369a1;margin:0;line-height:1.6">
+<strong>📋 What's Next?</strong><br>
+Your application is now pending admin review. Our team will verify your registration documents and approve your account.<br><br>
+You'll receive an email notification once your application is reviewed.
+</p>
+</div>
+<div class="actions" style="margin-top:24px;display:flex;gap:12px;justify-content:center">
+<a href="{{ url_for('ngo_application_status', email=email) }}" class="btn" style="text-decoration:none">Check Application Status</a>
+<a href="{{ url_for('login') }}" class="btn ghost" style="text-decoration:none">Back to Login</a>
+</div>
+</section></div>
+{% endblock %}
