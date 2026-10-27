@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NGO Registration Update - ReliefGrid</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%); padding: 40px; text-align: center; border-radius: 12px 12px 0 0;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">ReliefGrid</h1>
+                            <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0; font-size: 14px;">Smart Disaster Relief Coordination</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h2 style="color: #0f172a; margin: 0 0 16px; font-size: 22px;">NGO Registration Update</h2>
+                            
+                            <p style="color: #475569; line-height: 1.6; margin: 0 0 16px;">
+                                Dear <strong>{{ ngo.org_name }}</strong>,
+                            </p>
+                            
+                            <p style="color: #475569; line-height: 1.6; margin: 0 0 16px;">
+                                Thank you for your interest in joining the ReliefGrid platform. 
+                                After careful review, we regret to inform you that we are unable to approve 
+                                your NGO registration at this time.
+                            </p>
+                            
+                            <div style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 4px; margin: 0 0 24px;">
+                                <p style="margin: 0 0 8px; color: #991b1b; font-weight: 600; font-size: 14px;">
+                                    Reason for rejection:
+                                </p>
+                                <p style="margin: 0; color: #991b1b; font-size: 14px; line-height: 1.6;">
+                                    {{ rejection_reason }}
+                                </p>
+                            </div>
+                            
+                            <h3 style="color: #0f172a; margin: 24px 0 12px; font-size: 18px;">What You Can Do</h3>
+                            
+                            <p style="color: #475569; line-height: 1.6; margin: 0 0 12px;">
+                                We encourage you to review the feedback provided and address any issues mentioned. 
+                                You are welcome to submit a new application once you have addressed the concerns.
+                            </p>
+                            
+                            <p style="color: #475569; line-height: 1.6; margin: 0 0 24px;">
+                                If you have questions or need clarification, please contact our support team at your earliest convenience.
+                            </p>
+                            
+                            <!-- Contact Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding: 0 0 24px;">
+                                        <a href="mailto:support@reliefgrid.org" 
+                                           style="display: inline-block; background-color: #2563eb; color: #ffffff; 
+                                                  text-decoration: none; padding: 14px 32px; border-radius: 8px; 
+                                                  font-weight: 600; font-size: 16px;">
+                                            Contact Support
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+                            
+                            <p style="color: #64748b; font-size: 13px; line-height: 1.6; margin: 0;">
+                                We appreciate your understanding and your commitment to disaster relief efforts. 
+                                We remain committed to working with verified organizations to provide effective 
+                                coordination during emergencies.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8fafc; padding: 24px; text-align: center; 
+                                   border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0;">
+                            <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px;">
+                                This email was sent from ReliefGrid
+                            </p>
+                            <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                                Smart Disaster Relief Allocation and Rescue Coordination
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <!-- Footer message -->
+                <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px;">
+                    Questions? Contact your system administrator
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

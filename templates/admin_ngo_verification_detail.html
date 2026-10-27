@@ -1,0 +1,150 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}NGO Verification Details{% endblock %}
+{% block sub %}Review {{ ngo.org_name }} application{% endblock %}
+{% block content %}
+<div style="margin-bottom:16px">
+  <a href="{{ url_for('admin_ngo_verifications') }}" class="btn ghost small">← Back to list</a>
+</div>
+
+<div class="grid g2">
+  <!-- NGO Details -->
+  <div class="card">
+    <h2>NGO Details</h2>
+    <dl style="display:grid;grid-template-columns:160px 1fr;gap:12px;line-height:1.6">
+      <dt style="font-weight:600;color:#64748b">NGO ID</dt>
+      <dd style="margin:0"><strong>{{ ngo.ngo_id }}</strong></dd>
+      
+      <dt style="font-weight:600;color:#64748b">Organization Name</dt>
+      <dd style="margin:0">{{ ngo.org_name }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Registration Number</dt>
+      <dd style="margin:0">{{ ngo.official_reg_number }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Registration Type</dt>
+      <dd style="margin:0">{{ ngo.registration_type }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Email</dt>
+      <dd style="margin:0">{{ ngo.email }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Contact Number</dt>
+      <dd style="margin:0">{{ ngo.contact_number }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Address</dt>
+      <dd style="margin:0">{{ ngo.address }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Applied On</dt>
+      <dd style="margin:0">{{ ngo.applied_at }}</dd>
+      
+      <dt style="font-weight:600;color:#64748b">Email Verified</dt>
+      <dd style="margin:0">
+        {% if ngo.email_verified %}
+        <span style="color:#10b981;font-weight:600">✓ Verified</span>
+        {% else %}
+        <span style="color:#ef4444;font-weight:600">✗ Not Verified</span>
+        {% endif %}
+      </dd>
+      
+      <dt style="font-weight:600;color:#64748b">Status</dt>
+      <dd style="margin:0">{{ pill(ngo.status) }}</dd>
+    </dl>
+  </div>
+
+  <!-- Certificate Preview -->
+  <div class="card">
+    <h2>Registration Certificate</h2>
+    {% if ngo.certificate_filename %}
+      {% set file_ext = ngo.certificate_filename.split('.')[-1].lower() %}
+      
+      <div style="margin-bottom:12px">
+        <a href="{{ url_for('serve_certificate', filename=ngo.certificate_filename) }}" 
+           class="btn small ghost" download>Download Certificate</a>
+      </div>
+      
+      {% if file_ext == 'pdf' %}
+      <embed src="{{ url_for('serve_certificate', filename=ngo.certificate_filename) }}" 
+             type="application/pdf" 
+             width="100%" 
+             height="600px"
+             style="border:1px solid #e2e8f0;border-radius:8px">
+      {% elif file_ext in ['jpg', 'jpeg', 'png'] %}
+      <img src="{{ url_for('serve_certificate', filename=ngo.certificate_filename) }}" 
+           alt="Registration Certificate" 
+           style="max-width:100%;border:1px solid #e2e8f0;border-radius:8px">
+      {% else %}
+      <p class="muted">File type: {{ file_ext }}</p>
+      {% endif %}
+    {% else %}
+    <p class="muted">No certificate uploaded.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Approval/Rejection Actions -->
+<div class="card" style="margin-top:16px">
+  {% if ngo.status == 'PENDING' %}
+  <h2>Review Actions</h2>
+  <div class="grid g2">
+    <!-- Approve -->
+    <form method="post" action="{{ url_for('approve_ngo', ngo_id=ngo.id) }}" onsubmit="return confirm('Are you sure you want to approve this NGO? This will create a user account for them.')">
+      <button type="submit" class="btn" style="width:100%;background-color:#10b981;border-color:#10b981">
+        ✓ Approve NGO
+      </button>
+    </form>
+    
+    <!-- Reject -->
+    <div>
+      <button type="button" class="btn" style="width:100%;background-color:#ef4444;border-color:#ef4444" 
+              onclick="document.getElementById('reject-form').style.display='block';this.style.display='none'">
+        ✗ Reject Application
+      </button>
+      
+      <form id="reject-form" method="post" action="{{ url_for('reject_ngo', ngo_id=ngo.id) }}" 
+            style="display:none;margin-top:12px" 
+            onsubmit="return confirm('Are you sure you want to reject this application?')">
+        <label for="rejection_reason" style="display:block;margin-bottom:6px;font-weight:600">
+          Reason for Rejection (required)
+        </label>
+        <textarea name="rejection_reason" 
+                  id="rejection_reason" 
+                  rows="4" 
+                  required 
+                  placeholder="Explain why this application is being rejected..."
+                  style="width:100%;margin-bottom:12px"></textarea>
+        <button type="submit" class="btn" style="background-color:#ef4444;border-color:#ef4444">
+          Confirm Rejection
+        </button>
+        <button type="button" class="btn ghost" 
+                onclick="document.getElementById('reject-form').style.display='none';document.querySelector('button[onclick*=reject-form]').style.display='block'">
+          Cancel
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  {% elif ngo.status == 'APPROVED' %}
+  <h2>Review Status</h2>
+  <div style="padding:16px;background-color:#d1fae5;border:1px solid #10b981;border-radius:8px">
+    <p style="margin:0;color:#065f46">
+      <strong>✓ Approved</strong> by {{ ngo.reviewer_name or 'Admin' }} on {{ ngo.reviewed_at[:16] }}
+    </p>
+    <p style="margin:8px 0 0;color:#065f46;font-size:14px">
+      User account has been created. The NGO can now log in and access the relief center dashboard.
+    </p>
+  </div>
+  
+  {% elif ngo.status == 'REJECTED' %}
+  <h2>Review Status</h2>
+  <div style="padding:16px;background-color:#fee2e2;border:1px solid #ef4444;border-radius:8px">
+    <p style="margin:0;color:#991b1b">
+      <strong>✗ Rejected</strong> by {{ ngo.reviewer_name or 'Admin' }} on {{ ngo.reviewed_at[:16] }}
+    </p>
+    <p style="margin:8px 0 0;color:#991b1b;font-weight:600">
+      Reason:
+    </p>
+    <p style="margin:4px 0 0;color:#991b1b;font-size:14px">
+      {{ ngo.rejection_reason }}
+    </p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

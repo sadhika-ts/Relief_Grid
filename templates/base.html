@@ -7,7 +7,7 @@
 {% block body %}
 <div class="app">
 <aside class="side"><div class="brand">ReliefGrid</div>
-<nav>{% for label, ep in nav %}<a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep }}">{{ label }}{% if ep == 'notifications' and unread %}<b class="badge">{{ unread }}</b>{% endif %}</a>{% endfor %}</nav>
+<nav>{% for label, ep in nav %}<a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep }}">{{ label }}{% if ep == 'notifications' and unread %}<b class="badge">{{ unread }}</b>{% endif %}{% if ep == 'admin_ngo_verifications' and ngo_pending %}<b class="badge">{{ ngo_pending }}</b>{% endif %}</a>{% endfor %}</nav>
 <a href="{{ url_for('logout') }}">Log out</a></aside>
 <main class="main"><header class="top"><div><h1>{% block heading %}{% endblock %}</h1><p>{% block sub %}{% endblock %}</p></div>
 <div class="who">{{ session.name }}<small>{{ 'Admin' if session.role == 'admin' else 'Relief center user' }}</small></div></header>

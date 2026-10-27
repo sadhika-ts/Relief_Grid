@@ -31,7 +31,7 @@ app.teardown_appcontext(database.close_db)
 database.init_db()
 
 ADMIN_NAV = [("Dashboard", "admin_dashboard"), ("Locations", "locations"), ("Inventory", "inventory"),
-             ("Requests", "admin_requests"), ("Allocations", "allocations"), ("Deliveries", "admin_deliveries"),
+             ("Requests", "admin_requests"), ("NGO Verifications", "admin_ngo_verifications"), ("Allocations", "allocations"), ("Deliveries", "admin_deliveries"),
              ("Simulation", "simulation"), ("Reports", "reports"), ("Notifications", "notifications")]
 USER_NAV = [("Home", "user_home"), ("My Requests", "my_requests"), ("Allocations", "my_allocations"),
             ("Deliveries", "my_deliveries"), ("Resources", "user_resources"),
@@ -148,7 +148,8 @@ def inject_nav():
     admin = session["role"] == "admin"
     unread = q("SELECT COUNT(*) c FROM notifications WHERE is_read=0 AND " + ("user_id IS NULL" if admin else "user_id=?"),
                *([] if admin else [session["user_id"]]), one=True)["c"]
-    return {"nav": ADMIN_NAV if admin else USER_NAV, "unread": unread}
+    ngo_pending = q("SELECT COUNT(*) c FROM ngo_registrations WHERE status='PENDING'", one=True)["c"] if admin else 0
+    return {"nav": ADMIN_NAV if admin else USER_NAV, "unread": unread, "ngo_pending": ngo_pending}
 
 
 # ---------- 1. authentication ----------
@@ -819,6 +820,122 @@ def serve_certificate(filename):
     except FileNotFoundError:
         flash("Certificate file not found.", "error")
         return redirect(url_for("admin_dashboard"))
+
+
+# ---------- Admin NGO Verification ----------
+@app.route("/admin/ngo-verifications")
+@login_required("admin")
+def admin_ngo_verifications():
+    status_filter = request.args.get("status", "")
+    
+    # Build query with optional status filter
+    sql = """SELECT ngo_registrations.*, users.name AS reviewer_name 
+             FROM ngo_registrations 
+             LEFT JOIN users ON users.id = ngo_registrations.reviewed_by"""
+    
+    if status_filter:
+        sql += " WHERE status=?"
+        rows = q(sql + " ORDER BY applied_at DESC", status_filter)
+    else:
+        rows = q(sql + " ORDER BY applied_at DESC")
+    
+    # Count pending applications
+    pending_count = q("SELECT COUNT(*) c FROM ngo_registrations WHERE status='PENDING'", one=True)["c"]
+    
+    return render_template("admin_ngo_verifications.html", rows=rows, status=status_filter, pending_count=pending_count)
+
+
+@app.route("/admin/ngo-verifications/<int:ngo_id>")
+@login_required("admin")
+def admin_ngo_verification_detail(ngo_id):
+    # Query full NGO record with reviewer info
+    ngo = q("""SELECT ngo_registrations.*, users.name AS reviewer_name 
+               FROM ngo_registrations 
+               LEFT JOIN users ON users.id = ngo_registrations.reviewed_by 
+               WHERE ngo_registrations.id=?""", ngo_id, one=True)
+    
+    if not ngo:
+        flash("NGO registration not found.", "error")
+        return redirect(url_for("admin_ngo_verifications"))
+    
+    return render_template("admin_ngo_verification_detail.html", ngo=dict(ngo))
+
+
+@app.route("/admin/ngo-verifications/<int:ngo_id>/approve", methods=["POST"])
+@login_required("admin")
+def approve_ngo(ngo_id):
+    # Get NGO registration
+    ngo = q("SELECT * FROM ngo_registrations WHERE id=? AND status='PENDING'", ngo_id, one=True)
+    
+    if not ngo:
+        flash("NGO registration not found or already processed.", "error")
+        return redirect(url_for("admin_ngo_verifications"))
+    
+    # Update ngo_registrations status
+    db().execute("""UPDATE ngo_registrations 
+                    SET status='APPROVED', reviewed_at=CURRENT_TIMESTAMP, reviewed_by=? 
+                    WHERE id=?""", (session["user_id"], ngo_id))
+    
+    # Create user account with role='relief'
+    db().execute("""INSERT INTO users (name, org_name, email, password_hash, role, ngo_registration_id)
+                    VALUES (?, ?, ?, ?, 'relief', ?)""",
+                (ngo["org_name"], ngo["org_name"], ngo["email"], ngo["password_hash"], ngo_id))
+    
+    db().commit()
+    
+    # Send approval email
+    try:
+        if app.config.get("MAIL_USERNAME"):
+            msg = Message(
+                subject="Your NGO Registration Approved - ReliefGrid",
+                recipients=[ngo["email"]],
+                html=render_template("email/ngo_approved.html", ngo=dict(ngo))
+            )
+            mail.send(msg)
+    except Exception as e:
+        print(f"Email sending failed: {str(e)}")
+    
+    flash("NGO approved and user account created successfully!", "success")
+    return redirect(url_for("admin_ngo_verifications", status="PENDING"))
+
+
+@app.route("/admin/ngo-verifications/<int:ngo_id>/reject", methods=["POST"])
+@login_required("admin")
+def reject_ngo(ngo_id):
+    rejection_reason = request.form.get("rejection_reason", "").strip()
+    
+    if not rejection_reason:
+        flash("Please provide a reason for rejection.", "error")
+        return redirect(url_for("admin_ngo_verification_detail", ngo_id=ngo_id))
+    
+    # Get NGO registration
+    ngo = q("SELECT * FROM ngo_registrations WHERE id=? AND status='PENDING'", ngo_id, one=True)
+    
+    if not ngo:
+        flash("NGO registration not found or already processed.", "error")
+        return redirect(url_for("admin_ngo_verifications"))
+    
+    # Update status with rejection reason
+    db().execute("""UPDATE ngo_registrations 
+                    SET status='REJECTED', rejection_reason=?, reviewed_at=CURRENT_TIMESTAMP, reviewed_by=? 
+                    WHERE id=?""", (rejection_reason, session["user_id"], ngo_id))
+    
+    db().commit()
+    
+    # Send rejection email
+    try:
+        if app.config.get("MAIL_USERNAME"):
+            msg = Message(
+                subject="NGO Registration Update - ReliefGrid",
+                recipients=[ngo["email"]],
+                html=render_template("email/ngo_rejected.html", ngo=dict(ngo), rejection_reason=rejection_reason)
+            )
+            mail.send(msg)
+    except Exception as e:
+        print(f"Email sending failed: {str(e)}")
+    
+    flash("NGO application rejected.", "success")
+    return redirect(url_for("admin_ngo_verification_detail", ngo_id=ngo_id))
 
 
 if __name__ == "__main__":

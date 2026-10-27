@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% from "_macros.html" import pill %}
+{% block heading %}NGO Verifications{% endblock %}{% block sub %}Review and verify NGO registration applications.{% endblock %}
+{% block content %}
+<div class="actions" style="margin:0 0 12px">
+  {% for s in ['', 'PENDING', 'APPROVED', 'REJECTED'] %}
+  <a class="btn small {{ '' if s == status else 'ghost' }}" href="{{ url_for('admin_ngo_verifications', status=s) }}">
+    {{ s or 'All' }}{% if s == 'PENDING' and pending_count > 0 %} <b class="badge">{{ pending_count }}</b>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="card wrap">
+  <table>
+    <tr>
+      <th>NGO ID</th>
+      <th>Organization</th>
+      <th>Registration Number</th>
+      <th>Email</th>
+      <th>Applied Date</th>
+      <th>Email Verified</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+    {% for r in rows %}
+    <tr>
+      <td><strong>{{ r.ngo_id }}</strong></td>
+      <td>{{ r.org_name }}</td>
+      <td>{{ r.official_reg_number }}</td>
+      <td>{{ r.email }}</td>
+      <td>{{ r.applied_at[:10] }}</td>
+      <td style="text-align:center">
+        {% if r.email_verified %}
+        <span style="color:#10b981;font-size:16px">✓</span>
+        {% else %}
+        <span style="color:#ef4444;font-size:16px">✗</span>
+        {% endif %}
+      </td>
+      <td>{{ pill(r.status) }}</td>
+      <td>
+        <a class="btn small" href="{{ url_for('admin_ngo_verification_detail', ngo_id=r.id) }}">View Details</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="8" class="muted">No NGO applications match this filter.</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}
